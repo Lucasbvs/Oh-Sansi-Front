@@ -1,39 +1,60 @@
- "use client";
+"use client";
 import Link from "next/link";
-import { FaHome } from "react-icons/fa";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
+import { FaArrowLeft, FaArrowRight, FaTrophy, FaUsers, FaMoneyCheckAlt } from "react-icons/fa";
 
 export default function Navbar() {
-  const router = useRouter();
+  const pathname = usePathname();
 
+  const NavItem = ({
+    href,
+    label,
+    icon: Icon
+  }: { href: string; label: string; icon: React.ComponentType<any> }) => {
+    const active = pathname === href || (href !== "/" && pathname.startsWith(href));
     return (
-    <nav className="flex justify-between items-center px py bg-[#4854A1] text-white shadow-md">
-      <div className="flex items-center">
-        <Image src="/UMSS.png" alt="UMSS" width={50} height={50} />
+      <Link
+        href={href}
+        className={`flex items-center gap-2 px-3 py-2 rounded-full transition
+          ${active ? "bg-white text-[#4854A1]" : "text-white hover:bg-white/10"}`}
+        aria-current={active ? "page" : undefined}
+      >
+        <Icon className="text-xl" />
+        <span className="hidden sm:inline font-medium">{label}</span>
+      </Link>
+    );
+  };
+
+  return (
+    <nav className="flex justify-between items-center px-4 py-2 bg-[#4854A1] text-white shadow-md sticky top-0 z-50">
+      <div className="flex items-center gap-3">
+        <Image src="/UMSS.png" alt="UMSS" width={40} height={40} />
+        <span className="hidden md:block font-semibold">Universidad Mayor de San Simón</span>
       </div>
-    
-         <div className="flex space-x-4">
-        <Link href="/" className="p-2 rounded-full hover:bg-gray-200 transition">
-          <FaHome className="text-2xl text-white hover:text-[#3a468a]" />
-        </Link>
 
-         <button
-          onClick={() => router.back()}
-          className="p-2 rounded-full hover:bg-gray-200 transition"
-        >
-          <FaArrowLeft className="text-2xl text-white hover:text-[#3a468a]" />
-        </button>
+      <div className="flex items-center gap-2">
+        <NavItem href="/home" label="Competencias" icon={FaTrophy} />
+        <NavItem href="/usuarios"     label="Usuarios"     icon={FaUsers} />
+        <NavItem href="/pagos"        label="Pagos"        icon={FaMoneyCheckAlt} />
+      </div>
 
+      <div className="flex space-x-2">
         <button
-          onClick={() => router.forward()}
-          className="p-2 rounded-full hover:bg-gray-200 transition"
+          onClick={() => history.back()}
+          aria-label="Atrás"
+          className="p-2 rounded-full hover:bg-white/10"
         >
-          <FaArrowRight className="text-2xl text-white hover:text-[#3a468a]" />
+          <FaArrowLeft className="text-2xl" />
         </button>
-
-        </div>
+        <button
+          onClick={() => history.forward()}
+          aria-label="Adelante"
+          className="p-2 rounded-full hover:bg-white/10"
+        >
+          <FaArrowRight className="text-2xl" />
+        </button>
+      </div>
     </nav>
-  )
+  );
 }
