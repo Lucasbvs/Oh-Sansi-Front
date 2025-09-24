@@ -3,11 +3,20 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { FaGoogle, FaGithub, FaApple } from "react-icons/fa";
+import { useRouter } from "next/navigation";
+/* import { FaGoogle, FaGithub, FaApple } from "react-icons/fa"; */
 
-type LoginResponse = { ok: boolean; message?: string; token?: string };
+type LoginResponse = {
+  ok: boolean;
+  message?: string;
+  token?: string;
+  user?: { id: string; name: string; email: string; role: string };
+};
 
 export default function LoginPage() {
+  const router = useRouter();
+  const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
@@ -18,29 +27,24 @@ export default function LoginPage() {
     e.preventDefault();
     setErrorMsg(null);
 
-    if (!email || !password) {
-      setErrorMsg("Por favor, ingrese su correo y contraseña.");
-      return;
-    }
-
     try {
       setLoading(true);
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(`${API}/api/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ email, password }),
       });
-
       const data: LoginResponse = await res.json();
 
-      if (!res.ok || !data.ok) {
-        setErrorMsg(data.message ?? "Credenciales inválidas.");
+      if (!res.ok || !data.ok || !data.token) {
+        setErrorMsg(data.message ?? `Credenciales inválidas (HTTP ${res.status}).`);
         return;
       }
 
-      if (data.token) localStorage.setItem("ohsansi_token", data.token);
-      window.location.href = "/";
-    } catch (err) {
+      localStorage.setItem("ohsansi_token", data.token);
+      if (data.user) localStorage.setItem("ohsansi_user", JSON.stringify(data.user));
+      router.push("/home");
+    } catch {
       setErrorMsg("Error al iniciar sesión. Intente nuevamente.");
     } finally {
       setLoading(false);
@@ -54,7 +58,7 @@ export default function LoginPage() {
       </header>
 
       <main className="flex-1 grid place-items-center p-4">
-        <div className="w-full max-w-md rounded-2xl bg-white/90 shadow-xl backdrop-blur p-6">
+        <div className="w-full max-w-md rounded-2xl bg-[#A7B0FF] shadow-xl backdrop-blur p-6">
           <div className="text-center mb-6">
             <h1 className="text-3xl font-extrabold">
               <span className="text-[#3c468e]">Oh!</span>{" "}
@@ -92,8 +96,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPwd((v) => !v)}
-                  className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900"
-                  aria-label={showPwd ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  className="px-4 py-3 rounded-xl text-sm text-white hover:text-white bg-[#4854A1] transition disabled:opacity-60"
                 >
                   {showPwd ? "Ocultar" : "Mostrar"}
                 </button>
@@ -101,9 +104,7 @@ export default function LoginPage() {
             </label>
 
             {errorMsg && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
-                {errorMsg}
-              </p>
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">{errorMsg}</p>
             )}
 
             <button
@@ -114,42 +115,10 @@ export default function LoginPage() {
               {loading ? "Ingresando..." : "Ingresar"}
             </button>
 
-            <div className="flex items-center gap-2 my-2">
-              <div className="h-px flex-1 bg-gray-200" />
-              <span className="text-xs text-gray-500">o continuar con</span>
-              <div className="h-px flex-1 bg-gray-200" />
-            </div>
-
-            <div className="flex justify-center gap-3">
-              <button
-                type="button"
-                className="p-2.5 rounded-full border hover:bg-gray-50"
-                aria-label="Continuar con Google"
-                onClick={() => (window.location.href = "/api/auth/google")}
-              >
-                <FaGoogle className="text-xl" />
-              </button>
-              <button
-                type="button"
-                className="p-2.5 rounded-full border hover:bg-gray-50"
-                aria-label="Continuar con GitHub"
-                onClick={() => (window.location.href = "/api/auth/github")}
-              >
-                <FaGithub className="text-xl" />
-              </button>
-              <button
-                type="button"
-                className="p-2.5 rounded-full border hover:bg-gray-50"
-                aria-label="Continuar con Apple"
-                onClick={() => (window.location.href = "/api/auth/apple")}
-              >
-                <FaApple className="text-xl" />
-              </button>
-            </div>
-
+            
             <p className="text-center text-sm text-gray-600">
               ¿No tiene una cuenta?{" "}
-              <Link href="/register" className="text-[#4854A1] font-semibold hover:underline">
+              <Link href="/register" className="text-black font-semibold hover:underline">
                 Regístrese
               </Link>
             </p>
@@ -158,17 +127,17 @@ export default function LoginPage() {
       </main>
 
       <footer className="bg-[#4854A1] text-white py-4 mt-8">
-      <div className="mx-auto max-w-6xl px-4 md:px-6 flex flex-col sm:flex-row items-center sm:items-start justify-between gap-2">
-        <div className="text-center sm:text-left">
-          <p className="font-semibold">Contáctanos: ohsansi@sansi.com</p>
-          <p className="font-semibold">Whatsapp: (+591)71530671</p>
+        <div className="mx-auto max-w-6xl px-4 md:px-6 flex flex-col sm:flex-row items-center sm:items-start justify-between gap-2">
+          <div className="text-center sm:text-left">
+            <p className="font-semibold">Contáctanos: ohsansi@sansi.com</p>
+            <p className="font-semibold">Whatsapp: (+591)71530671</p>
+          </div>
+          <div className="text-center sm:text-right">
+            <p className="font-semibold">Avenida Oquendo Nro. 2147</p>
+            <p className="font-semibold">Cochabamba - Bolivia</p>
+          </div>
         </div>
-        <div className="text-center sm:text-right">
-          <p className="font-semibold">Avenida Oquendo Nro. 2147</p>
-          <p className="font-semibold">Cochabamba - Bolivia</p>
-        </div>
-      </div>
-    </footer>
+      </footer>
     </div>
   );
 }

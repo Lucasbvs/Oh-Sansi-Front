@@ -9,7 +9,6 @@ export default function Hero() {
         backgroundPosition: "center",
       }} */
     >
-hola
         
     </div>
   )

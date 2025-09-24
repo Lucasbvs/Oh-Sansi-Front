@@ -13,13 +13,15 @@ type Competition = {
   id: string;
   nombre: string;
   nivel: Nivel;
-  areas: string[];
+  area: string;
   estado: Estado;
   participantes: number;
 };
 
 export default function Home() {
   const router = useRouter();
+  const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
   const [loading, setLoading] = useState(true);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [query, setQuery] = useState("");
@@ -30,7 +32,6 @@ export default function Home() {
   // modal de confirmación de borrado
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toDelete, setToDelete] = useState<Competition | null>(null);
-  const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
   useEffect(() => {
     async function fetchCompetitions() {
@@ -44,7 +45,7 @@ export default function Home() {
 
         const res = await fetch(url.toString(), { headers: { Accept: "application/json" } });
         const data = await res.json();
-        setCompetitions(Array.isArray(data) ? data : (data.items ?? []));
+        setCompetitions(Array.isArray(data) ? data : data.items ?? []);
       } catch (e) {
         console.error(e);
       } finally {
@@ -52,11 +53,11 @@ export default function Home() {
       }
     }
     fetchCompetitions();
-  }, [query, estado, nivel, area]);
+  }, [API, query, estado, nivel, area]);
 
   const allAreas = useMemo<string[]>(() => {
     const s = new Set<string>();
-    competitions.forEach((c) => c.areas.forEach((a) => s.add(a)));
+    competitions.forEach((c) => s.add(c.area));
     return Array.from(s).sort();
   }, [competitions]);
 
@@ -66,10 +67,10 @@ export default function Home() {
       const byQuery =
         q.length === 0 ||
         c.nombre.toLowerCase().includes(q) ||
-        c.areas.some((a) => a.toLowerCase().includes(q));
+        c.area.toLowerCase().includes(q);
       const byEstado = estado === "Todos" || c.estado === estado;
       const byNivel = nivel === "Todos" || c.nivel === nivel;
-      const byArea = area === "Todas" || c.areas.includes(area);
+      const byArea = area === "Todas" || c.area === area;
       return byQuery && byEstado && byNivel && byArea;
     });
   }, [competitions, query, estado, nivel, area]);
@@ -109,7 +110,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
+    <div className="min-h-screen flex flex-col bg-white">
       <Navbar />
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 md:px-6 py-6">
@@ -134,7 +135,6 @@ export default function Home() {
             value={estado}
             onChange={(e) => setEstado(e.target.value as Estado | "Todos")}
             className="rounded-full bg-gray-100 px-4 py-2 text-sm text-black"
-            aria-label="Filtrar por estado"
           >
             <option value="Todos">Estado</option>
             <option>Activo</option>
@@ -146,13 +146,10 @@ export default function Home() {
             value={area}
             onChange={(e) => setArea(e.target.value)}
             className="rounded-full bg-gray-100 px-4 py-2 text-sm text-black"
-            aria-label="Filtrar por área"
           >
             <option value="Todas">Áreas</option>
             {allAreas.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
+              <option key={a} value={a}>{a}</option>
             ))}
           </select>
 
@@ -160,7 +157,6 @@ export default function Home() {
             value={nivel}
             onChange={(e) => setNivel(e.target.value as Nivel | "Todos")}
             className="rounded-full bg-gray-100 px-4 py-2 text-sm text-black"
-            aria-label="Filtrar por nivel"
           >
             <option value="Todos">Niveles</option>
             <option>Principiante</option>
@@ -169,7 +165,7 @@ export default function Home() {
           </select>
         </div>
 
-        {/* Lista scrollable (solo se desplaza la zona de tarjetas) */}
+        {/* Lista scrollable */}
         <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
           {loading ? (
             Array.from({ length: 3 }).map((_, i) => (
@@ -184,7 +180,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* Acciones globales */}
+        {/* Crear */}
         <div className="mt-4 flex justify-end gap-2">
           <button
             onClick={() => router.push("/competencias/nueva")}
@@ -197,27 +193,17 @@ export default function Home() {
 
       <Footer />
 
-      {/* Modal de confirmación */}
+      {/* Modal confirmación */}
       {confirmOpen && toDelete && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-bold mb-2">Confirmar eliminación</h3>
+            <h3 className="text-lg font-bold mb-2 text-black">Confirmar eliminación</h3>
             <p className="text-sm text-gray-600">
               ¿Seguro que deseas eliminar <b>{toDelete.nombre}</b>? Esta acción no se puede deshacer.
             </p>
             <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={() => { setConfirmOpen(false); setToDelete(null); }}
-                className="px-4 py-2 rounded-xl border"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700"
-              >
-                Eliminar
-              </button>
+              <button onClick={() => { setConfirmOpen(false); setToDelete(null); }} className="px-4 py-2 rounded-xl border text-black">Cancelar</button>
+              <button onClick={confirmDelete} className="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700">Eliminar</button>
             </div>
           </div>
         </div>
@@ -241,21 +227,15 @@ function CompetitionCard({
         <div className="min-w-0">
           <h2 className="text-lg font-semibold truncate text-black">{c.nombre}</h2>
           <p className="text-sm text-gray-600">Nivel: {c.nivel}</p>
-          <p className="text-sm text-gray-600 truncate">Áreas: {c.areas.join(", ")}</p>
+          <p className="text-sm text-gray-600 truncate">Área: {c.area}</p>
           <StatusPill estado={c.estado} participantes={c.participantes} />
         </div>
 
         <div className="flex flex-col gap-2">
-          <button
-            onClick={() => onEdit(c.id)}
-            className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm hover:bg-gray-50"
-          >
+          <button onClick={() => onEdit(c.id)} className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm hover:bg-gray-50 text-black">
             <FiEdit2 /> Editar
           </button>
-          <button
-            onClick={() => onDelete(c)}
-            className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm hover:bg-gray-50 text-red-600 border-red-300"
-          >
+          <button onClick={() => onDelete(c)} className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm hover:bg-gray-50 text-red-600 border-red-300">
             <FiTrash2 /> Eliminar
           </button>
         </div>

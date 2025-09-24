@@ -46,14 +46,7 @@ export default function Hero() {
         <div className="relative z-10 flex flex-col items-center justify-center max-h-full overflow-hidden">
           <h1 className="text-7xl md:text-9xl font-Belanosima">Oh! Sansi!</h1>
           <h2 className="text-5xl md:text-7xl font-Belanosima mt-2">Bienvenido</h2>
-
-          {/* <div className="flex justify-center space-x-6 text-4xl md:text-6xl my-6">
-      <span>🤖</span>
-      <span>π</span>
-      <span>⚛️</span>
-      <span>🧪</span>
-    </div> */}
-
+         
           <br></br>
 
           <Link href="/login">

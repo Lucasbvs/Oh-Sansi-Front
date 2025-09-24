@@ -15,15 +15,16 @@ export default function NuevaCompetenciaPage() {
   const [nombre, setNombre] = useState("");
   const [nivel, setNivel] = useState<Nivel>("Principiante");
   const [estado, setEstado] = useState<Estado>("Activo");
-  const [areasText, setAreasText] = useState(""); // separado por comas
+  const [area, setArea] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErrorMsg(null);
+
     const token = typeof window !== "undefined" ? localStorage.getItem("ohsansi_token") : null;
-    const areas = areasText.split(",").map(a => a.trim()).filter(Boolean);
+    if (!token) { setErrorMsg("Debe iniciar sesión."); return; }
 
     try {
       setLoading(true);
@@ -31,9 +32,9 @@ export default function NuevaCompetenciaPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ nombre, nivel, estado, areas }),
+        body: JSON.stringify({ nombre, nivel, estado, area }),
       });
       if (!res.ok) {
         const text = await res.text();
@@ -53,7 +54,7 @@ export default function NuevaCompetenciaPage() {
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 md:px-6 py-6">
         <h1 className="text-2xl font-bold mb-4 text-black">Nueva competencia</h1>
 
-        <form onSubmit={handleSubmit} className="space-y-4 bg-gray-400 rounded-2xl p-6 shadow">
+        <form onSubmit={handleSubmit} className="space-y-4 bg-gray-100 rounded-2xl p-6 shadow">
           <label className="block">
             <span className="text-sm font-medium text-black">Nombre</span>
             <input className="mt-1 w-full rounded-lg border px-3 py-2 text-black" value={nombre} onChange={e => setNombre(e.target.value)} required />
@@ -80,15 +81,17 @@ export default function NuevaCompetenciaPage() {
           </div>
 
           <label className="block">
-            <span className="text-sm font-medium text-black">Áreas</span>
-            <input className="mt-1 w-full rounded-lg border px-3 py-2 text-black" value={areasText} onChange={e => setAreasText(e.target.value)} placeholder="Ej: Cinemática, Derivados e integrales" />
+            <span className="text-sm font-medium text-black">Área</span>
+            <input className="mt-1 w-full rounded-lg border px-3 py-2 text-black" value={area} onChange={e => setArea(e.target.value)} placeholder="Ej: Cinemática" />
           </label>
 
           {errorMsg && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">{errorMsg}</p>}
 
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => router.back()} className="px-4 py-2 rounded-xl border">Cancelar</button>
-            <button disabled={loading} className="px-4 py-2 rounded-xl bg-[#4854A1] text-white hover:bg-[#3a468a]">{loading ? "Guardando..." : "Guardar"}</button>
+            <button disabled={loading} className="px-4 py-2 rounded-xl bg-[#4854A1] text-white hover:bg-[#3a468a]">
+              {loading ? "Guardando..." : "Guardar"}
+            </button>
           </div>
         </form>
       </main>

@@ -36,7 +36,7 @@ export default function Navbar() {
       <div className="flex items-center gap-2">
         <NavItem href="/home" label="Competencias" icon={FaTrophy} />
         <NavItem href="/usuarios"     label="Usuarios"     icon={FaUsers} />
-        <NavItem href="/pagos"        label="Pagos"        icon={FaMoneyCheckAlt} />
+        {/* <NavItem href="/pagos"        label="Pagos"        icon={FaMoneyCheckAlt} /> */}
       </div>
 
       <div className="flex space-x-2">
