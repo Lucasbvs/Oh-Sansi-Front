@@ -73,9 +73,9 @@ export default function RegisterPage() {
         <Image src="/UMSS.png" alt="UMSS" width={36} height={36} />
       </header>
 
-      {/* MAIN CENTRADO VERTICALMENTE */}
+      {}
       <main className="flex-1 flex items-center justify-center py-4">
-        <div className="w-full max-w-md rounded-2xl bg-[#A7B0FF] shadow-xl p-5">
+        <div className="w-full max-w-md rounded-2xl bg-gray-300 shadow-xl p-5">
           <div className="text-center mb-5">
             <h1 className="text-2xl font-extrabold">
               <span className="text-[#3c468e]">Oh!</span>{" "}
@@ -85,7 +85,7 @@ export default function RegisterPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">
-            {/* Nombre Completo */}
+            {}
             <label className="block">
               <span className="text-sm font-medium text-black">Nombre completo</span>
               <input
@@ -98,7 +98,7 @@ export default function RegisterPage() {
               />
             </label>
 
-            {/* Email */}
+            {}
             <label className="block">
               <span className="text-sm font-medium text-black">Correo electrónico</span>
               <input
@@ -112,7 +112,7 @@ export default function RegisterPage() {
               />
             </label>
 
-            {/* Contraseña CON BOTÓN MOSTRAR */}
+            {}
             <label className="block">
               <span className="text-sm font-medium text-black">Contraseña</span>
               <div className="mt-1 flex items-center rounded-lg border border-black focus-within:ring-2 focus-within:ring-[#4854A1]">
