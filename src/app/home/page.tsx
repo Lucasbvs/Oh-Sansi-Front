@@ -6,32 +6,50 @@ import Navbar from "../components/navbar";
 import Footer from "../components/footer";
 import { FiPlus, FiEdit2, FiTrash2 } from "react-icons/fi";
 
-type Estado = "Activo" | "Archivado" | "Borrador";
-type Nivel = "Principiante" | "Intermedio" | "Avanzado";
+import {
+  EstadoUi, EstadoApi,
+  NivelUi,  NivelApi,
+  AreaUi,   AreaApi,
+  estadoApi2Ui, estadoUi2Api,
+  nivelApi2Ui,  nivelUi2Api,
+  areaApi2Ui,   areaUi2Api,
+} from "../types"; // ajusta la ruta si tu types.ts está en otro lugar
 
-type Competition = {
+// --------- Tipos ----------
+type CompetitionApi = {
   id: string;
   nombre: string;
-  nivel: Nivel;
-  area: string;
-  estado: Estado;
+  nivel: NivelApi;
+  area: AreaApi;
+  estado: EstadoApi;
+  participantes: number;
+  // fechaInicio?: string; // si lo necesitas
+};
+
+type CompetitionUi = {
+  id: string;
+  nombre: string;
+  nivel: NivelUi;
+  area: AreaUi;
+  estado: EstadoUi;
   participantes: number;
 };
 
+// --------- Página ----------
 export default function Home() {
   const router = useRouter();
   const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
   const [loading, setLoading] = useState(true);
-  const [competitions, setCompetitions] = useState<Competition[]>([]);
+  const [competitions, setCompetitions] = useState<CompetitionUi[]>([]);
   const [query, setQuery] = useState("");
-  const [estado, setEstado] = useState<Estado | "Todos">("Todos");
-  const [nivel, setNivel] = useState<Nivel | "Todos">("Todos");
-  const [area, setArea] = useState<string | "Todas">("Todas");
+  const [estado, setEstado] = useState<EstadoUi | "Todos">("Todos");
+  const [nivel, setNivel] = useState<NivelUi | "Todos">("Todos");
+  const [area, setArea] = useState<AreaUi | "Todas">("Todas");
 
   // modal de confirmación de borrado
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [toDelete, setToDelete] = useState<Competition | null>(null);
+  const [toDelete, setToDelete] = useState<CompetitionUi | null>(null);
 
   useEffect(() => {
     async function fetchCompetitions() {
@@ -39,13 +57,24 @@ export default function Home() {
       try {
         const url = new URL("/api/competitions", API);
         if (query.trim()) url.searchParams.set("q", query.trim());
-        if (estado !== "Todos") url.searchParams.set("estado", estado);
-        if (nivel !== "Todos") url.searchParams.set("nivel", nivel);
-        if (area !== "Todas") url.searchParams.set("area", area);
+        if (estado !== "Todos") url.searchParams.set("estado", estadoUi2Api[estado]);
+        if (nivel !== "Todos")  url.searchParams.set("nivel",  nivelUi2Api[nivel]);
+        if (area !== "Todas")   url.searchParams.set("area",   areaUi2Api[area]);
 
         const res = await fetch(url.toString(), { headers: { Accept: "application/json" } });
         const data = await res.json();
-        setCompetitions(Array.isArray(data) ? data : data.items ?? []);
+
+        const itemsApi: CompetitionApi[] = Array.isArray(data) ? data : data.items ?? [];
+        const itemsUi: CompetitionUi[] = itemsApi.map((x) => ({
+          id: x.id,
+          nombre: x.nombre,
+          nivel: nivelApi2Ui[x.nivel],
+          area: areaApi2Ui[x.area],
+          estado: estadoApi2Ui[x.estado],
+          participantes: x.participantes,
+        }));
+
+        setCompetitions(itemsUi);
       } catch (e) {
         console.error(e);
       } finally {
@@ -55,13 +84,13 @@ export default function Home() {
     fetchCompetitions();
   }, [API, query, estado, nivel, area]);
 
-  const allAreas = useMemo<string[]>(() => {
-    const s = new Set<string>();
+  const allAreas = useMemo<AreaUi[]>(() => {
+    const s = new Set<AreaUi>();
     competitions.forEach((c) => s.add(c.area));
-    return Array.from(s).sort();
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [competitions]);
 
-  const filtered = useMemo<Competition[]>(() => {
+  const filtered = useMemo<CompetitionUi[]>(() => {
     const q = query.toLowerCase().trim();
     return competitions.filter((c) => {
       const byQuery =
@@ -79,7 +108,7 @@ export default function Home() {
     router.push(`/competencias/${id}/editar`);
   }
 
-  function openDelete(c: Competition) {
+  function openDelete(c: CompetitionUi) {
     setToDelete(c);
     setConfirmOpen(true);
   }
@@ -133,18 +162,20 @@ export default function Home() {
         <div className="flex flex-wrap gap-3 mb-4">
           <select
             value={estado}
-            onChange={(e) => setEstado(e.target.value as Estado | "Todos")}
+            onChange={(e) => setEstado(e.target.value as EstadoUi | "Todos")}
             className="rounded-full bg-gray-100 px-4 py-2 text-sm text-black"
           >
             <option value="Todos">Estado</option>
-            <option>Activo</option>
-            <option>Archivado</option>
-            <option>Borrador</option>
+            <option>Inscripción</option>
+            <option>Desarrollo</option>
+            <option>Evaluación</option>
+            <option>Modificaciones</option>
+            <option>Finalización</option>
           </select>
 
           <select
             value={area}
-            onChange={(e) => setArea(e.target.value)}
+            onChange={(e) => setArea(e.target.value as AreaUi | "Todas")}
             className="rounded-full bg-gray-100 px-4 py-2 text-sm text-black"
           >
             <option value="Todas">Áreas</option>
@@ -155,7 +186,7 @@ export default function Home() {
 
           <select
             value={nivel}
-            onChange={(e) => setNivel(e.target.value as Nivel | "Todos")}
+            onChange={(e) => setNivel(e.target.value as NivelUi | "Todos")}
             className="rounded-full bg-gray-100 px-4 py-2 text-sm text-black"
           >
             <option value="Todos">Niveles</option>
@@ -217,9 +248,9 @@ function CompetitionCard({
   onEdit,
   onDelete,
 }: {
-  c: Competition;
+  c: CompetitionUi;
   onEdit: (id: string) => void;
-  onDelete: (c: Competition) => void;
+  onDelete: (c: CompetitionUi) => void;
 }) {
   return (
     <article className="rounded-2xl border bg-white p-4 shadow-sm hover:shadow-md transition">
@@ -239,7 +270,7 @@ function CompetitionCard({
             <FiEdit2 /> Editar
           </button>
           <button onClick={() => onDelete(c)} className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm hover:bg-gray-50 text-red-600 border-red-300">
-            <FiTrash2 /> Eliminar
+            <FiTrash2 /> Deshabilitar
           </button>
         </div>
       </div>
@@ -247,16 +278,21 @@ function CompetitionCard({
   );
 }
 
-function StatusPill({ estado, participantes }: { estado: Estado; participantes: number }) {
-  const cfg = {
-    Activo: { dot: "bg-green-500", bg: "bg-green-50", text: "text-green-700" },
-    Archivado: { dot: "bg-gray-400", bg: "bg-gray-50", text: "text-gray-700" },
-    Borrador: { dot: "bg-yellow-400", bg: "bg-yellow-50", text: "text-yellow-800" },
-  }[estado];
+function StatusPill({ estado, participantes }: { estado: EstadoUi; participantes: number }) {
+  const cfg =
+    ({
+      "Inscripción":   { dot: "bg-blue-500",   bg: "bg-blue-50",   text: "text-blue-700" },
+      "Desarrollo":    { dot: "bg-indigo-500", bg: "bg-indigo-50", text: "text-indigo-700" },
+      "Evaluación":    { dot: "bg-amber-500",  bg: "bg-amber-50",  text: "text-amber-800" },
+      "Modificaciones":{ dot: "bg-yellow-500", bg: "bg-yellow-50", text: "text-yellow-800" },
+      "Finalización":  { dot: "bg-green-500",  bg: "bg-green-50",  text: "text-green-700" },
+    } as Record<EstadoUi, { dot: string; bg: string; text: string } >)[estado];
+
+  const safe = cfg ?? { dot: "bg-gray-400", bg: "bg-gray-50", text: "text-gray-700" };
 
   return (
-    <div className={`mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm ${cfg.bg} ${cfg.text}`}>
-      <span className={`inline-block h-2.5 w-2.5 rounded-full ${cfg.dot}`} />
+    <div className={`mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm ${safe.bg} ${safe.text}`}>
+      <span className={`inline-block h-2.5 w-2.5 rounded-full ${safe.dot}`} />
       <span className="font-medium">{estado}</span>
       <span className="text-gray-500">· {participantes} participantes</span>
     </div>
