@@ -118,7 +118,7 @@ export default function Home() {
 
         {/* Buscador */}
         <div className="mb-4">
-          <div className="flex items-center gap-2 rounded-full border bg-white px-4 py-2 shadow-sm">
+          <div className="flex items-center gap-2 rounded-full border bg-white px-4 py-2 shadow-sm text-black">
             <span className="text-gray-500">🔎</span>
             <input
               value={query}
@@ -166,9 +166,9 @@ export default function Home() {
         </div>
 
         {/* Lista scrollable */}
-        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+        <div className="space-y-3 overflow-y-auto pr-1 max-h-[23rem] sm:max-h-[21rem]">
           {loading ? (
-            Array.from({ length: 3 }).map((_, i) => (
+            Array.from({ length: 1 }).map((_, i) => (
               <div key={i} className="h-24 rounded-2xl bg-gray-100 animate-pulse" />
             ))
           ) : filtered.length === 0 ? (
@@ -228,6 +228,9 @@ function CompetitionCard({
           <h2 className="text-lg font-semibold truncate text-black">{c.nombre}</h2>
           <p className="text-sm text-gray-600">Nivel: {c.nivel}</p>
           <p className="text-sm text-gray-600 truncate">Área: {c.area}</p>
+        </div>
+
+        <div>
           <StatusPill estado={c.estado} participantes={c.participantes} />
         </div>
 

@@ -54,7 +54,7 @@ export default function NuevaCompetenciaPage() {
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 md:px-6 py-6">
         <h1 className="text-2xl font-bold mb-4 text-black">Nueva competencia</h1>
 
-        <form onSubmit={handleSubmit} className="space-y-4 bg-gray-100 rounded-2xl p-6 shadow">
+        <form onSubmit={handleSubmit} className="space-y-4 bg-gray-200 rounded-2xl p-6 shadow">
           <label className="block">
             <span className="text-sm font-medium text-black">Nombre</span>
             <input className="mt-1 w-full rounded-lg border px-3 py-2 text-black" value={nombre} onChange={e => setNombre(e.target.value)} required />
@@ -88,7 +88,7 @@ export default function NuevaCompetenciaPage() {
           {errorMsg && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">{errorMsg}</p>}
 
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => router.back()} className="px-4 py-2 rounded-xl border">Cancelar</button>
+            <button type="button" onClick={() => router.back()} className="px-4 py-2 rounded-xl border text-black">Cancelar</button>
             <button disabled={loading} className="px-4 py-2 rounded-xl bg-[#4854A1] text-white hover:bg-[#3a468a]">
               {loading ? "Guardando..." : "Guardar"}
             </button>

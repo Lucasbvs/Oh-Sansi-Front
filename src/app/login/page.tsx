@@ -58,7 +58,7 @@ export default function LoginPage() {
       </header>
 
       <main className="flex-1 grid place-items-center p-4">
-        <div className="w-full max-w-md rounded-2xl bg-gray-300 shadow-xl backdrop-blur p-6">
+        <div className="w-full max-w-md rounded-2xl bg-gray-200 shadow-xl backdrop-blur p-6">
           <div className="text-center mb-6">
             <h1 className="text-3xl font-extrabold">
               <span className="text-[#3c468e]">Oh!</span>{" "}
