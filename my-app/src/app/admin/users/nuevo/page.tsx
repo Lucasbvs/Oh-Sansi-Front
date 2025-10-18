@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/app/components/navbar";
 import Footer from "@/app/components/footer";
+import useAuthUser from "@/hooks/useAuthUser";
 
 type CreateResponse = {
   ok: boolean;
@@ -12,67 +13,66 @@ type CreateResponse = {
   user?: { id: string; name: string; email: string; role: string };
 };
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+type RoleItem = { id: string; name: string; slug: string; isSystem: boolean };
 
-// Roles permitidos a crear por el ADMIN (no incluimos ADMIN / SUPERADMIN aquí)
-const ROLES_UI = [
-  { value: "RESPONSABLEACADEMICO", label: "Responsable Académico" },
-  { value: "EVALUADOR", label: "Evaluador" },
-  { value: "ESTUDIANTE", label: "Estudiante" },
-  { value: "TUTOR", label: "Tutor" },
-];
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export default function AdminCreateUserPage() {
   const router = useRouter();
+  const { user: me, loading: loadingMe } = useAuthUser();
 
   const [authChecked, setAuthChecked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showPwd, setShowPwd] = useState(false);
 
+  const [roles, setRoles] = useState<RoleItem[]>([]);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     ciudad: "",
     ci: "",
-    role: "ESTUDIANTE", // por defecto
+    roleId: "",
     password: "",
     confirmPassword: "",
   });
 
-  // Verifica que el usuario logueado sea ADMIN antes de mostrar el formulario
+  // Gate por permiso users.create
   useEffect(() => {
+    if (loadingMe) return;
+
+    const perms = (me as any)?.roleInfo?.permissions ?? {};
+    const canCreate = !!perms?.users?.create;
+
+    if (!canCreate) {
+      router.replace("/?error=No%20autorizado");
+      return;
+    }
+    setAuthChecked(true);
+  }, [me, loadingMe, router]);
+
+  // Cargar roles para el select
+  useEffect(() => {
+    if (!authChecked) return;
     (async () => {
       try {
         const token = typeof window !== "undefined" ? localStorage.getItem("ohsansi_token") : null;
-        if (!token) {
-          router.replace("/login?message=Inicia%20sesión");
-          return;
-        }
-
-        const res = await fetch(`${API}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
+        const res = await fetch(`${API}/api/roles`, {
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         });
-
-        if (!res.ok) {
-          router.replace("/login?message=Sesión%20inválida");
-          return;
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const list: RoleItem[] = data?.roles ?? [];
+        setRoles(list);
+        if (list.length && !formData.roleId) {
+          setFormData((f) => ({ ...f, roleId: list[0].id }));
         }
-
-        const me = await res.json();
-        const role = (me?.user?.role ?? "").toUpperCase();
-        if (role !== "ADMIN") {
-          router.replace("/?error=No%20autorizado");
-          return;
-        }
-
-        setAuthChecked(true);
-      } catch {
-        router.replace("/login?message=Error%20de%20sesión");
+      } catch (e) {
+        console.error(e);
+        setErrorMsg("No se pudieron cargar los roles");
       }
     })();
-  }, [router]);
+  }, [authChecked]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -80,6 +80,10 @@ export default function AdminCreateUserPage() {
 
     if (formData.password.length < 6) {
       setErrorMsg("La contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+    if (!formData.roleId) {
+      setErrorMsg("Seleccione un rol");
       return;
     }
 
@@ -91,7 +95,8 @@ export default function AdminCreateUserPage() {
         return;
       }
 
-      const res = await fetch(`${API}/api/admin/users`, {
+      // POST a /api/users (nuevo)
+      const res = await fetch(`${API}/api/users`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -101,16 +106,16 @@ export default function AdminCreateUserPage() {
           name: formData.name,
           email: formData.email,
           password: formData.password,
-          ciudad: formData.ciudad || null,
+          ciudad: formData.ciudad || null, // se normaliza en el backend
           ci: formData.ci || null,
-          role: formData.role, // debe coincidir con enum Role del backend
+          roleId: formData.roleId,
         }),
       });
 
       const data: CreateResponse = await res.json();
 
       if (!res.ok || !data.ok) {
-        setErrorMsg(data.message ?? "Error al crear el usuario");
+        setErrorMsg(data.message ?? `Error al crear el usuario (HTTP ${res.status})`);
         return;
       }
 
@@ -141,7 +146,7 @@ export default function AdminCreateUserPage() {
               <span className="text-[#3c468e]">Oh!</span>{" "}
               <span className="text-[#e34b5a]">Sansi!</span>
             </h1>
-            <p className="text-sm text-gray-600 mt-1">Crear usuario (solo ADMIN)</p>
+            <p className="text-sm text-gray-600 mt-1">Crear usuario</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">
@@ -194,20 +199,22 @@ export default function AdminCreateUserPage() {
               </label>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className="block">
-                <span className="text-sm font-medium text-black">Rol</span>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="mt-1 w-full rounded-lg text-black border border-black bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#4854A1]"
-                >
-                  {ROLES_UI.map(r => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
-                  ))}
-                </select>
-              </label>
+            <label className="block">
+              <span className="text-sm font-medium text-black">Rol</span>
+              <select
+                value={formData.roleId}
+                onChange={(e) => setFormData({ ...formData, roleId: e.target.value })}
+                className="mt-1 w-full rounded-lg text-black border border-black bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#4854A1]"
+              >
+                {roles.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name} {r.isSystem ? "(sistema)" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label className="block">
                 <span className="text-sm font-medium text-black">Contraseña</span>
                 <div className="mt-1 flex items-center rounded-lg border border-black focus-within:ring-2 focus-within:ring-[#4854A1]">
@@ -222,7 +229,7 @@ export default function AdminCreateUserPage() {
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPwd(v => !v)}
+                    onClick={() => setShowPwd((v) => !v)}
                     className="px-3 py-2 rounded-lg text-xs text-white bg-[#4854A1] transition"
                   >
                     {showPwd ? "Ocultar" : "Mostrar"}
@@ -241,7 +248,6 @@ export default function AdminCreateUserPage() {
               type="submit"
               disabled={loading}
               className="w-full rounded-lg bg-[#4854A1] text-white py-2 font-semibold hover:bg-[#3a468a] transition disabled:opacity-60 text-sm"
-              onClick={handleSubmit}
             >
               {loading ? "Creando usuario..." : "Crear usuario"}
             </button>

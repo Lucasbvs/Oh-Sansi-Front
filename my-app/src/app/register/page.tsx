@@ -112,14 +112,24 @@ export default function RegisterPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label className="block">
-               <span className="text-sm font-medium text-black">Ciudad</span>
-               <input
-                 type="text"
-                  value={formData.ciudad}
-                 onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })}
-                 className="mt-1 w-full rounded-lg text-black border border-black bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#4854A1]"
-                 placeholder="Cochabamba"
-                />
+                 <span className="text-sm font-medium text-black">Ciudad</span>
+                    <select
+                      value={formData.ciudad}
+                      onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })}
+                      className="mt-1 w-full rounded-lg text-black border border-black bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#4854A1]"
+                      required
+                    >
+                      <option value="">Seleccione una ciudad</option>
+                      <option value="PANDO">Pando</option>
+                      <option value="LAPAZ">La Paz</option>
+                      <option value="COCHABAMBA">Cochabamba</option>
+                      <option value="BENI">Beni</option>
+                      <option value="SANTACRUZ">Santa Cruz</option>
+                      <option value="ORURO">Oruro</option>
+                      <option value="POTOSI">Potosí</option>
+                      <option value="CHUQUISACA">Chuquisaca</option>
+                      <option value="TARIJA">Tarija</option>
+                    </select>
               </label>
 
               <label className="block">

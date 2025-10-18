@@ -1,8 +1,8 @@
 "use client";
-
 import { useEffect, useState } from "react";
 
-type MeUser = { id: string; name: string; email: string; role: string };
+type RoleInfo = { id: string; name: string; slug: string; permissions?: any };
+type MeUser = { id: string; name: string; email: string; role: string; roleInfo?: RoleInfo };
 type MeResponse = { ok: boolean; user?: MeUser };
 
 function useAuthUserHook() {
@@ -13,43 +13,28 @@ function useAuthUserHook() {
 
   useEffect(() => {
     let alive = true;
-
     (async () => {
       setLoading(true);
       try {
-        const token =
-          typeof window !== "undefined"
-            ? localStorage.getItem("ohsansi_token")
-            : null;
+        const token = typeof window !== "undefined" ? localStorage.getItem("ohsansi_token") : null;
+        if (!token) { if (alive) { setUser(null); setLoading(false); } return; }
 
-        if (!token) {
-          if (alive) setUser(null);
-          return;
-        }
-
-        const res = await fetch(`${API}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
+        const res = await fetch(`${API}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
         const data: MeResponse = await res.json();
 
-        if (res.ok && data?.ok && data.user) {
-          if (alive) setUser(data.user);
-        } else {
-          if (alive) setUser(null);
-        }
+        if (res.ok && data?.ok && data.user) { if (alive) setUser(data.user); }
+        else { if (alive) setUser(null); }
       } catch {
         if (alive) setError("No se pudo obtener el usuario");
       } finally {
         if (alive) setLoading(false);
       }
     })();
-
     return () => { alive = false; };
   }, [API]);
 
   return { user, loading, error };
 }
 
-export default useAuthUserHook;      // ✅ default export
-export const useAuthUser = useAuthUserHook; // ✅ named export (por si algún import usa llaves)
+export default useAuthUserHook;
+export const useAuthUser = useAuthUserHook;

@@ -1,5 +1,5 @@
-export type EstadoUi = "Inscripción" | "Desarrollo" | "Evaluación" | "Modificaciones" | "Finalización";
-export type EstadoApi = "INSCRIPCION" | "DESARROLLO" | "EVALUACION" | "MODIFICACIONES" | "FINALIZACION";
+export type EstadoUi = "Inscripción" | "Desarrollo" | "Evaluación" | "Corrección" | "Premiación";
+export type EstadoApi = "INSCRIPCION" | "DESARROLLO" | "EVALUACION" | "CORRECCION" | "PREMIACION";
 
 export type NivelUi = "Principiante" | "Intermedio" | "Avanzado";
 export type NivelApi = "PRINCIPIANTE" | "INTERMEDIO" | "AVANZADO";
@@ -11,15 +11,15 @@ export const estadoUi2Api: Record<EstadoUi, EstadoApi> = {
   "Inscripción": "INSCRIPCION",
   "Desarrollo": "DESARROLLO",
   "Evaluación": "EVALUACION",
-  "Modificaciones": "MODIFICACIONES",
-  "Finalización": "FINALIZACION",
+  "Corrección": "CORRECCION",
+  "Premiación": "PREMIACION",
 };
 export const estadoApi2Ui: Record<EstadoApi, EstadoUi> = {
   INSCRIPCION: "Inscripción",
   DESARROLLO: "Desarrollo",
   EVALUACION: "Evaluación",
-  MODIFICACIONES: "Modificaciones",
-  FINALIZACION: "Finalización",
+  CORRECCION: "Corrección",
+  PREMIACION: "Premiación",
 };
 
 export const nivelUi2Api: Record<NivelUi, NivelApi> = {

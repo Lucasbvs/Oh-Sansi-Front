@@ -2,15 +2,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { FaArrowLeft, FaArrowRight, FaTrophy, FaUsers, FaMoneyCheckAlt } from "react-icons/fa";
+import { FaArrowLeft, FaArrowRight, FaTrophy, FaUsers, FaShieldAlt } from "react-icons/fa";
+import useAuthUser from "@/hooks/useAuthUser";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const { user } = useAuthUser();
+  const perms = (user as any)?.roleInfo?.permissions ?? {};
+  const canSeeCompetencias = !!perms?.competitions?.read;
+  const canSeeUsuarios     = !!perms?.users?.read;
+  const isAdmin            = (user?.role ?? "") === "ADMIN"; // Roles solo para ADMIN
 
   const NavItem = ({
-    href,
-    label,
-    icon: Icon
+    href, label, icon: Icon
   }: { href: string; label: string; icon: React.ComponentType<any> }) => {
     const active = pathname === href || (href !== "/" && pathname.startsWith(href));
     return (
@@ -34,25 +38,14 @@ export default function Navbar() {
       </div>
 
       <div className="flex items-center gap-2">
-        <NavItem href="/home" label="Competencias" icon={FaTrophy} />
-        <NavItem href="/usuarios"     label="Usuarios"     icon={FaUsers} />
+        {canSeeCompetencias && <NavItem href="/home"     label="Competencias" icon={FaTrophy} />}
+        {canSeeUsuarios     && <NavItem href="/usuarios" label="Usuarios"     icon={FaUsers}  />}
+        {isAdmin            && <NavItem href="/roles"    label="Roles"        icon={FaShieldAlt} />}
       </div>
 
       <div className="flex space-x-2">
-        <button
-          onClick={() => history.back()}
-          aria-label="Atrás"
-          className="p-2 rounded-full hover:bg-white/10"
-        >
-          <FaArrowLeft className="text-2xl" />
-        </button>
-        <button
-          onClick={() => history.forward()}
-          aria-label="Adelante"
-          className="p-2 rounded-full hover:bg-white/10"
-        >
-          <FaArrowRight className="text-2xl" />
-        </button>
+        <button onClick={() => history.back()} aria-label="Atrás"    className="p-2 rounded-full hover:bg-white/10"><FaArrowLeft  className="text-2xl" /></button>
+        <button onClick={() => history.forward()} aria-label="Adelante" className="p-2 rounded-full hover:bg-white/10"><FaArrowRight className="text-2xl" /></button>
       </div>
     </nav>
   );

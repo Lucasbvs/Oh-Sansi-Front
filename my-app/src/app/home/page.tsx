@@ -5,26 +5,45 @@ import { useRouter } from "next/navigation";
 import Navbar from "../components/navbar";
 import Footer from "../components/footer";
 import { FiPlus, FiEdit2, FiTrash2 } from "react-icons/fi";
+import useAuthUser from "@/hooks/useAuthUser";
 
-import {
-  EstadoUi, EstadoApi,
-  NivelUi,  NivelApi,
-  AreaUi,   AreaApi,
-  estadoApi2Ui, estadoUi2Api,
-  nivelApi2Ui,  nivelUi2Api,
-  areaApi2Ui,   areaUi2Api,
-} from "../types";
+type NivelApi = "PRINCIPIANTE" | "INTERMEDIO" | "AVANZADO";
+type AreaApi = "MATEMATICA" | "FISICA" | "ROBOTICA" | "QUIMICA" | "PROGRAMACION";
+type EtapaApi = "INSCRIPCION" | "DESARROLLO" | "EVALUACION" | "CORRECCION" | "PREMIACION";
 
-import useAuthUser  from "@/hooks/useAuthUser";
-
-// --------- Tipos ----------
 type CompetitionApi = {
   id: string;
   nombre: string;
   nivel: NivelApi;
   area: AreaApi;
-  estado: EstadoApi;
   participantes: number;
+  estado: boolean;
+  createdAt: string;
+  etapas: { etapa: EtapaApi; fechaInicio: string; fechaFin: string | null }[];
+};
+
+type NivelUi = "Principiante" | "Intermedio" | "Avanzado";
+type AreaUi  = "Matemática" | "Física" | "Robótica" | "Química" | "Programación";
+type EtapaUi = "Inscripción" | "Desarrollo" | "Evaluación" | "Corrección" | "Premiación";
+
+const nivelApi2Ui: Record<NivelApi, NivelUi> = {
+  PRINCIPIANTE: "Principiante",
+  INTERMEDIO: "Intermedio",
+  AVANZADO: "Avanzado",
+};
+const areaApi2Ui: Record<AreaApi, AreaUi> = {
+  MATEMATICA: "Matemática",
+  FISICA: "Física",
+  ROBOTICA: "Robótica",
+  QUIMICA: "Química",
+  PROGRAMACION: "Programación",
+};
+const etapaApi2Ui: Record<EtapaApi, EtapaUi> = {
+  INSCRIPCION: "Inscripción",
+  DESARROLLO: "Desarrollo",
+  EVALUACION: "Evaluación",
+  CORRECCION: "Corrección",
+  PREMIACION: "Premiación",
 };
 
 type CompetitionUi = {
@@ -32,27 +51,26 @@ type CompetitionUi = {
   nombre: string;
   nivel: NivelUi;
   area: AreaUi;
-  estado: EstadoUi;
   participantes: number;
+  etapaActual?: EtapaUi;
 };
 
-// --------- Página ----------
 export default function Home() {
   const router = useRouter();
   const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
   const { user, loading: loadingUser } = useAuthUser();
-  const showActions =
-  !loadingUser && (user?.role === "ADMIN" || user?.role === "RESPONSABLEACADEMICO");
+  const perms = (user as any)?.roleInfo?.permissions ?? {};
+  const canCreate = !!perms?.competitions?.create;
+  const canUpdate = !!perms?.competitions?.update;
+  const canDelete = !!perms?.competitions?.delete;
 
   const [loading, setLoading] = useState(true);
   const [competitions, setCompetitions] = useState<CompetitionUi[]>([]);
   const [query, setQuery] = useState("");
-  const [estado, setEstado] = useState<EstadoUi | "Todos">("Todos");
   const [nivel, setNivel] = useState<NivelUi | "Todos">("Todos");
   const [area, setArea] = useState<AreaUi | "Todas">("Todas");
 
-  // modal de confirmación de borrado
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toDelete, setToDelete] = useState<CompetitionUi | null>(null);
 
@@ -62,22 +80,59 @@ export default function Home() {
       try {
         const url = new URL("/api/competitions", API);
         if (query.trim()) url.searchParams.set("q", query.trim());
-        if (estado !== "Todos") url.searchParams.set("estado", estadoUi2Api[estado]);
-        if (nivel !== "Todos")  url.searchParams.set("nivel",  nivelUi2Api[nivel]);
-        if (area !== "Todas")   url.searchParams.set("area",   areaUi2Api[area]);
+        if (nivel !== "Todos") {
+          const inv: Record<NivelUi, NivelApi> = {
+            Principiante: "PRINCIPIANTE",
+            Intermedio: "INTERMEDIO",
+            Avanzado: "AVANZADO",
+          };
+          url.searchParams.set("nivel", inv[nivel]);
+        }
+        if (area !== "Todas") {
+          const inv: Record<AreaUi, AreaApi> = {
+            Matemática: "MATEMATICA",
+            Física: "FISICA",
+            Robótica: "ROBOTICA",
+            Química: "QUIMICA",
+            Programación: "PROGRAMACION",
+          };
+          url.searchParams.set("area", inv[area]);
+        }
 
-        const res = await fetch(url.toString(), { headers: { Accept: "application/json" } });
+        const token = typeof window !== "undefined" ? localStorage.getItem("ohsansi_token") : null;
+
+        const res = await fetch(url.toString(), {
+          headers: {
+            Accept: "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          cache: "no-store",
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          router.push("/login");
+          return;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
         const data = await res.json();
+        const itemsApi: CompetitionApi[] = data?.competitions ?? [];
+        const itemsUi: CompetitionUi[] = itemsApi.map((c) => {
+          // etapa actual = la que tenga fechaInicio más reciente que hoy (simple)
+          const now = Date.now();
+          const etapaActual = c.etapas
+            .filter((e) => new Date(e.fechaInicio).getTime() <= now)
+            .sort((a, b) => new Date(b.fechaInicio).getTime() - new Date(a.fechaInicio).getTime())[0];
 
-        const itemsApi: CompetitionApi[] = Array.isArray(data) ? data : data.items ?? [];
-        const itemsUi: CompetitionUi[] = itemsApi.map((x) => ({
-          id: x.id,
-          nombre: x.nombre,
-          nivel: nivelApi2Ui[x.nivel],
-          area: areaApi2Ui[x.area],
-          estado: estadoApi2Ui[x.estado],
-          participantes: x.participantes,
-        }));
+          return {
+            id: c.id,
+            nombre: c.nombre,
+            nivel: nivelApi2Ui[c.nivel],
+            area: areaApi2Ui[c.area],
+            participantes: c.participantes,
+            etapaActual: etapaActual ? etapaApi2Ui[etapaActual.etapa] : undefined,
+          };
+        });
 
         setCompetitions(itemsUi);
       } catch (e) {
@@ -87,12 +142,14 @@ export default function Home() {
       }
     }
     fetchCompetitions();
-  }, [API, query, estado, nivel, area]);
+  }, [API, query, nivel, area, router]);
 
   const allAreas = useMemo<AreaUi[]>(() => {
     const s = new Set<AreaUi>();
     competitions.forEach((c) => s.add(c.area));
-    return Array.from(s).sort((a, b) => a.localeCompare(b));
+    return ["Matemática", "Física", "Robótica", "Química", "Programación"].filter((a) =>
+      s.has(a as AreaUi)
+    ) as AreaUi[];
   }, [competitions]);
 
   const filtered = useMemo<CompetitionUi[]>(() => {
@@ -102,26 +159,25 @@ export default function Home() {
         q.length === 0 ||
         c.nombre.toLowerCase().includes(q) ||
         c.area.toLowerCase().includes(q);
-      const byEstado = estado === "Todos" || c.estado === estado;
       const byNivel = nivel === "Todos" || c.nivel === nivel;
       const byArea = area === "Todas" || c.area === area;
-      return byQuery && byEstado && byNivel && byArea;
+      return byQuery && byNivel && byArea;
     });
-  }, [competitions, query, estado, nivel, area]);
+  }, [competitions, query, nivel, area]);
 
   function handleEdit(id: string) {
-    if (!showActions) return;
+    if (!canUpdate) return;
     router.push(`/competencias/${id}/editar`);
   }
 
   function openDelete(c: CompetitionUi) {
-    if (!showActions) return;
+    if (!canDelete) return;
     setToDelete(c);
     setConfirmOpen(true);
   }
 
   async function confirmDelete() {
-    if (!toDelete || !showActions) return;
+    if (!toDelete || !canDelete) return;
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("ohsansi_token") : null;
       const res = await fetch(`${API}/api/competitions/${toDelete.id}`, {
@@ -138,7 +194,7 @@ export default function Home() {
       setCompetitions((prev) => prev.filter((c) => c.id !== toDelete.id));
     } catch (e) {
       console.error(e);
-      alert("No se pudo eliminar la competencia.");
+      alert("No se pudo deshabilitar/eliminar la competencia.");
     } finally {
       setConfirmOpen(false);
       setToDelete(null);
@@ -168,19 +224,6 @@ export default function Home() {
         {/* Filtros */}
         <div className="flex flex-wrap gap-3 mb-4">
           <select
-            value={estado}
-            onChange={(e) => setEstado(e.target.value as EstadoUi | "Todos")}
-            className="rounded-full bg-gray-100 px-4 py-2 text-sm text-black"
-          >
-            <option value="Todos">Estado</option>
-            <option>Inscripción</option>
-            <option>Desarrollo</option>
-            <option>Evaluación</option>
-            <option>Modificaciones</option>
-            <option>Finalización</option>
-          </select>
-
-          <select
             value={area}
             onChange={(e) => setArea(e.target.value as AreaUi | "Todas")}
             className="rounded-full bg-gray-100 px-4 py-2 text-sm text-black"
@@ -203,10 +246,10 @@ export default function Home() {
           </select>
         </div>
 
-        {/* Lista scrollable */}
+        {/* Lista */}
         <div className="space-y-3 overflow-y-auto pr-1 max-h-[23rem] sm:max-h-[21rem]">
           {loading ? (
-            Array.from({ length: 1 }).map((_, i) => (
+            Array.from({ length: 2 }).map((_, i) => (
               <div key={i} className="h-24 rounded-2xl bg-gray-100 animate-pulse" />
             ))
           ) : filtered.length === 0 ? (
@@ -218,14 +261,15 @@ export default function Home() {
                 c={c}
                 onEdit={handleEdit}
                 onDelete={openDelete}
-                showActions={showActions}
+                canUpdate={canUpdate}
+                canDelete={canDelete}
               />
             ))
           )}
         </div>
 
-        {/* Crear (solo con permisos) */}
-        {showActions && (
+        {/* Crear (según permiso) */}
+        {canCreate && (
           <div className="mt-4 flex justify-end gap-2">
             <button
               onClick={() => router.push("/competencias/nueva")}
@@ -239,8 +283,8 @@ export default function Home() {
 
       <Footer />
 
-      {/* Modal confirmación (solo si hay permiso) */}
-      {showActions && confirmOpen && toDelete && (
+      {/* Modal confirmación */}
+      {canDelete && confirmOpen && toDelete && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <h3 className="text-lg font-bold mb-2 text-black">Confirmar deshabilitación</h3>
@@ -262,12 +306,14 @@ function CompetitionCard({
   c,
   onEdit,
   onDelete,
-  showActions,
+  canUpdate,
+  canDelete,
 }: {
   c: CompetitionUi;
   onEdit: (id: string) => void;
   onDelete: (c: CompetitionUi) => void;
-  showActions: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
 }) {
   return (
     <article className="rounded-2xl border bg-white p-4 shadow-sm hover:shadow-md transition">
@@ -279,41 +325,30 @@ function CompetitionCard({
         </div>
 
         <div>
-          <StatusPill estado={c.estado} participantes={c.participantes} />
+          {c.etapaActual && (
+            <div className="mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm bg-indigo-50 text-indigo-700">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-indigo-500" />
+              <span className="font-medium">{c.etapaActual}</span>
+              <span className="text-gray-500">· {c.participantes} participantes</span>
+            </div>
+          )}
         </div>
 
-        {showActions && (
+        {(canUpdate || canDelete) && (
           <div className="flex flex-col gap-2">
-            <button onClick={() => onEdit(c.id)} className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm hover:bg-gray-50 text-black">
-              <FiEdit2 /> Editar
-            </button>
-            <button onClick={() => onDelete(c)} className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm hover:bg-gray-50 text-red-600 border-red-300">
-              <FiTrash2 /> Deshabilitar
-            </button>
+            {canUpdate && (
+              <button onClick={() => onEdit(c.id)} className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm hover:bg-gray-50 text-black">
+                <FiEdit2 /> Editar
+              </button>
+            )}
+            {canDelete && (
+              <button onClick={() => onDelete(c)} className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm hover:bg-gray-50 text-red-600 border-red-300">
+                <FiTrash2 /> Deshabilitar
+              </button>
+            )}
           </div>
         )}
       </div>
     </article>
-  );
-}
-
-function StatusPill({ estado, participantes }: { estado: EstadoUi; participantes: number }) {
-  const cfg =
-    ({
-      "Inscripción":   { dot: "bg-blue-500",   bg: "bg-blue-50",   text: "text-blue-700" },
-      "Desarrollo":    { dot: "bg-indigo-500", bg: "bg-indigo-50", text: "text-indigo-700" },
-      "Evaluación":    { dot: "bg-amber-500",  bg: "bg-amber-50",  text: "text-amber-800" },
-      "Modificaciones":{ dot: "bg-yellow-500", bg: "bg-yellow-50", text: "text-yellow-800" },
-      "Finalización":  { dot: "bg-green-500",  bg: "bg-green-50",  text: "text-green-700" },
-    } as Record<EstadoUi, { dot: string; bg: string; text: string } >)[estado];
-
-  const safe = cfg ?? { dot: "bg-gray-400", bg: "bg-gray-50", text: "text-gray-700" };
-
-  return (
-    <div className={`mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm ${safe.bg} ${safe.text}`}>
-      <span className={`inline-block h-2.5 w-2.5 rounded-full ${safe.dot}`} />
-      <span className="font-medium">{estado}</span>
-      <span className="text-gray-500">· {participantes} participantes</span>
-    </div>
   );
 }
