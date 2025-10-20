@@ -18,3 +18,13 @@ export function canReadUsers(roleSlug?: string, perms?: Permissions | null) {
   if (isAdmin(roleSlug)) return true;
   return Boolean(perms?.users?.read);
 }
+
+export function getPermissions() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("ohsansi_perms");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}

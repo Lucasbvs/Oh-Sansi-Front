@@ -11,11 +11,12 @@ export default function Navbar() {
   const perms = (user as any)?.roleInfo?.permissions ?? {};
   const canSeeCompetencias = !!perms?.competitions?.read;
   const canSeeUsuarios     = !!perms?.users?.read;
-  const isAdmin            = (user?.role ?? "") === "ADMIN"; // Roles solo para ADMIN
+  const canSeeMisComp      = !!perms?.inscriptions?.read; // 👈 nuevo
+  const isAdmin            = (user?.role ?? "") === "ADMIN";
 
-  const NavItem = ({
-    href, label, icon: Icon
-  }: { href: string; label: string; icon: React.ComponentType<any> }) => {
+  const NavItem = ({ href, label, icon: Icon }:{
+    href: string; label: string; icon: React.ComponentType<any>
+  }) => {
     const active = pathname === href || (href !== "/" && pathname.startsWith(href));
     return (
       <Link
@@ -39,6 +40,7 @@ export default function Navbar() {
 
       <div className="flex items-center gap-2">
         {canSeeCompetencias && <NavItem href="/home"     label="Competencias" icon={FaTrophy} />}
+        {canSeeMisComp      && <NavItem href="/mis-competencias" label="Mis competencias" icon={FaTrophy} />} {/* 👈 */}
         {canSeeUsuarios     && <NavItem href="/usuarios" label="Usuarios"     icon={FaUsers}  />}
         {isAdmin            && <NavItem href="/roles"    label="Roles"        icon={FaShieldAlt} />}
       </div>

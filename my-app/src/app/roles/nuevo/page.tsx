@@ -11,6 +11,7 @@ type Perms = {
   competitions?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
   users?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
   roles?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
+  inscriptions?: Partial<Record<"read" | "create" | "delete", boolean>>;
 };
 
 function generarSlug(nombre: string) {
@@ -31,7 +32,10 @@ export default function NuevoRolPage() {
     competitions: { read: true, create: false, update: false, delete: false },
     users: { read: false, create: false, update: false, delete: false },
     roles: { read: false, create: false, update: false, delete: false },
+    inscriptions: { read: true, create: true, delete: false }, // 👈 por defecto
   });
+
+
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -117,9 +121,6 @@ export default function NuevoRolPage() {
             />
           </label>
 
-          {/* 🔥 Importante: NO mostramos sección "NavBar".
-              La visibilidad del menú se deriva de los permisos READ de cada módulo. */}
-
           {/* Competencias */}
           <fieldset className="border rounded-xl p-4">
             <legend className="px-2 text-sm font-semibold">Competencias</legend>
@@ -164,6 +165,22 @@ export default function NuevoRolPage() {
               </label>
             ))}
           </fieldset>
+
+          {/* Inscripciones */}
+          <fieldset className="border rounded-xl p-4">
+            <legend className="px-2 text-sm font-semibold">Inscripciones</legend>
+            {["read", "create", "delete"].map((k) => (
+              <label key={k} className="mr-4">
+                <input
+                  type="checkbox"
+                  checked={!!(perms?.inscriptions as any)?.[k]}
+                  onChange={() => toggle(`inscriptions.${k}`)}
+                />{" "}
+                {k}
+              </label>
+            ))}
+          </fieldset>
+
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 

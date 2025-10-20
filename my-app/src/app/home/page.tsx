@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "../components/navbar";
@@ -59,7 +60,7 @@ export default function Home() {
   const router = useRouter();
   const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
-  const { user, loading: loadingUser } = useAuthUser();
+  const { user } = useAuthUser();
   const perms = (user as any)?.roleInfo?.permissions ?? {};
   const canCreate = !!perms?.competitions?.create;
   const canUpdate = !!perms?.competitions?.update;
@@ -118,7 +119,6 @@ export default function Home() {
         const data = await res.json();
         const itemsApi: CompetitionApi[] = data?.competitions ?? [];
         const itemsUi: CompetitionUi[] = itemsApi.map((c) => {
-          // etapa actual = la que tenga fechaInicio más reciente que hoy (simple)
           const now = Date.now();
           const etapaActual = c.etapas
             .filter((e) => new Date(e.fechaInicio).getTime() <= now)
@@ -315,8 +315,25 @@ function CompetitionCard({
   canUpdate: boolean;
   canDelete: boolean;
 }) {
+  const router = useRouter();
+
+  // Navega al detalle cuando se hace click en cualquier parte de la tarjeta
+  const goDetail = () => router.push(`/competencias/${c.id}`);
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      goDetail();
+    }
+  };
+
   return (
-    <article className="rounded-2xl border bg-white p-4 shadow-sm hover:shadow-md transition">
+    <article
+      role="button"
+      tabIndex={0}
+      onClick={goDetail}
+      onKeyDown={onKey}
+      className="cursor-pointer rounded-2xl border bg-white p-4 shadow-sm hover:shadow-md transition"
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold truncate text-black">{c.nombre}</h2>
@@ -337,17 +354,33 @@ function CompetitionCard({
         {(canUpdate || canDelete) && (
           <div className="flex flex-col gap-2">
             {canUpdate && (
-              <button onClick={() => onEdit(c.id)} className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm hover:bg-gray-50 text-black">
+              <button
+                onClick={(e) => { e.stopPropagation(); onEdit(c.id); }}
+                className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm hover:bg-gray-50 text-black"
+              >
                 <FiEdit2 /> Editar
               </button>
             )}
             {canDelete && (
-              <button onClick={() => onDelete(c)} className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm hover:bg-gray-50 text-red-600 border-red-300">
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(c); }}
+                className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm hover:bg-gray-50 text-red-600 border-red-300"
+              >
                 <FiTrash2 /> Deshabilitar
               </button>
             )}
           </div>
         )}
+      </div>
+
+      {/* Enlace textual secundario (opcional) */}
+      <div className="mt-2">
+        <Link
+          href={`/competencias/${c.id}`}
+          onClick={(e) => e.stopPropagation()}
+          className="text-sm text-[#4854A1] underline"
+        >
+        </Link>
       </div>
     </article>
   );

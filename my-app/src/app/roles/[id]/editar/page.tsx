@@ -1,228 +1,272 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Navbar from "../../../components/navbar";
-import Footer from "../../../components/footer";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import Navbar from "@/app/components/navbar";
+import Footer from "@/app/components/footer";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+type Perms = {
+  navbar?: Partial<Record<"home" | "competencias" | "usuarios" | "roles", boolean>>;
+  competitions?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
+  users?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
+  roles?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
+  inscriptions?: Partial<Record<"read" | "create" | "delete", boolean>>;
+};
 
-type Role = {
+type RoleDTO = {
   id: string;
   name: string;
   slug: string;
   isSystem: boolean;
-  permissions?: {
-    competitions?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
-    users?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
-    roles?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
-  } | null;
+  permissions: Perms | null;
 };
 
-function generarSlug(nombre: string) {
-  return nombre
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase()
-    .replace(/\s+/g, "_");
-}
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
-export default function EditarRolPage() {
+export default function EditRolePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
-  const [role, setRole] = useState<Role | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
-  const [perms, setPerms] = useState<Role["permissions"]>({
+  const [isSystem, setIsSystem] = useState(false);
+  const [perms, setPerms] = useState<Perms>({
+    navbar: { home: true, competencias: true, usuarios: false, roles: false },
     competitions: { read: true, create: false, update: false, delete: false },
     users: { read: false, create: false, update: false, delete: false },
     roles: { read: false, create: false, update: false, delete: false },
+    inscriptions: { read: true, create: true, delete: false },
   });
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const headerTitle = useMemo(() => (name ? `Editar rol: ${name}` : "Editar rol"), [name]);
+
+  // ------- helpers -------
+  function getToken() {
+    return typeof window !== "undefined" ? localStorage.getItem("ohsansi_token") : null;
+  }
 
   function toggle(path: string) {
-    const [g, k] = path.split(".");
+    // path p.ej. "competitions.read"  /  "navbar.roles"  / "inscriptions.create"
     setPerms((prev) => {
-      const base = prev ?? {};
-      const group: any = { ...(base as any)[g] };
-      group[k] = !group[k];
-      return { ...base, [g]: group };
+      const next: any = { ...prev };
+      const parts = path.split(".");
+      if (parts.length !== 2) return prev;
+      const [group, key] = parts as [keyof Perms, string];
+      next[group] = { ...(next[group] || {}) };
+      next[group][key] = !Boolean(next[group][key]);
+      return next;
     });
   }
 
+  // ------- cargar -------
   useEffect(() => {
-    if (!id) return;
     (async () => {
+      setLoading(true);
+      setErrorMsg(null);
       try {
-        const token = localStorage.getItem("ohsansi_token");
-        if (!token) {
-          router.push("/login");
-          return;
-        }
-
+        const token = getToken();
         const res = await fetch(`${API}/api/roles/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Accept: "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           cache: "no-store",
         });
-        if (res.status === 401 || res.status === 403) {
-          router.push("/login");
-          return;
-        }
-        const data = await res.json();
-        const r: Role | undefined = data?.role;
-        if (!r) throw new Error("No encontrado");
-
-        setRole(r);
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.message || `HTTP ${res.status}`);
+        const r: RoleDTO = json.role;
         setName(r.name);
         setSlug(r.slug);
-        setPerms(r.permissions ?? { competitions: {}, users: {}, roles: {} });
+        setIsSystem(r.isSystem);
+        setPerms({
+          navbar: { home: true, competencias: true, usuarios: false, roles: false, ...(r.permissions?.navbar || {}) },
+          competitions: { read: true, ...(r.permissions?.competitions || {}) },
+          users: { ...(r.permissions?.users || {}) },
+          roles: { ...(r.permissions?.roles || {}) },
+          inscriptions: { read: true, ...(r.permissions?.inscriptions || {}) }, // 👈 asegura defaults
+        });
       } catch (e: any) {
-        setError(e.message ?? "Error");
+        setErrorMsg(e.message || "No se pudo cargar el rol");
       } finally {
         setLoading(false);
       }
     })();
-  }, [id, router]);
+  }, [id]);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    if (!role) return;
-
+  // ------- guardar -------
+  async function save() {
+    setSaving(true);
+    setErrorMsg(null);
     try {
-      setSaving(true);
-      const token = localStorage.getItem("ohsansi_token");
-      const res = await fetch(`${API}/api/roles/${role.id}`, {
+      const token = getToken();
+      const body = {
+        name,
+        slug, // lo mantenemos aunque se muestre deshabilitado si es de sistema
+        permissions: perms,
+      };
+      const res = await fetch(`${API}/api/roles/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          name: name.trim(),
-          // slug se mantiene sincronizado automático con el name
-          slug: slug || generarSlug(name),
-          permissions: perms,
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(body),
       });
-      const data = await res.json();
-      if (!res.ok || data?.ok === false) throw new Error(data?.message || `HTTP ${res.status}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || `HTTP ${res.status}`);
       router.push("/roles");
     } catch (e: any) {
-      setError(e.message);
+      setErrorMsg(e.message || "No se pudo guardar");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col bg-white text-black">
       <Navbar />
-      <main className="flex-1 max-w-3xl mx-auto w-full px-4 md:px-6 py-6 text-black">
-        <h1 className="text-2xl font-bold mb-4">Editar rol</h1>
+      <main className="flex-1 w-full max-w-4xl mx-auto px-4 md:px-6 py-6">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl md:text-3xl font-bold">{headerTitle}</h1>
+          <Link href="/roles" className="px-3 py-2 rounded-xl border">Volver</Link>
+        </div>
 
         {loading ? (
-          <div className="h-24 rounded-2xl bg-gray-100 animate-pulse" />
-        ) : error ? (
-          <p className="text-red-600">{error}</p>
-        ) : !role ? (
-          <p>No encontrado.</p>
+          <div className="h-40 rounded-2xl bg-gray-100 animate-pulse" />
         ) : (
-          <form onSubmit={submit} className="space-y-4 bg-gray-100 rounded-2xl p-6">
-            {/* Nombre */}
-            <label className="block">
-              <span className="text-sm font-medium">Nombre</span>
-              <input
-                className="mt-1 w-full rounded-lg border px-3 py-2"
-                value={name}
-                onChange={(e) => {
-                  const n = e.target.value;
-                  setName(n);
-                  // Si es rol de sistema, no cambiamos el slug.
-                  if (!role.isSystem) setSlug(generarSlug(n));
-                }}
-                required
-                disabled={role.isSystem && role.slug === "ADMIN"} // opcional: evita editar nombre de ADMIN
-              />
-            </label>
+          <form
+            className="space-y-6"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!saving) save();
+            }}
+          >
+            {!!errorMsg && <p className="text-red-600">{errorMsg}</p>}
 
-            {/* Slug (solo lectura y auto) */}
-            <label className="block">
-              <span className="text-sm font-medium">Slug (automático)</span>
-              <input
-                className="mt-1 w-full rounded-lg border px-3 py-2 bg-gray-50 text-gray-600"
-                value={slug}
-                readOnly
-              />
-            </label>
-
-            {/* 🔥 Sin sección “NavBar” (la visibilidad del menú se deriva de READ) */}
-
-            {/* Competencias */}
-            <fieldset className="border rounded-xl p-4">
-              <legend className="px-2 text-sm font-semibold">Competencias</legend>
-              {["read", "create", "update", "delete"].map((k) => (
-                <label key={k} className="mr-4">
+            <section className="rounded-2xl bg-gray-100 p-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Nombre</label>
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full rounded-xl border px-3 py-2"
+                    placeholder="Nombre legible del rol"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Slug</label>
+                  <input
+                    value={slug}
+                    onChange={(e) => setSlug(e.target.value.toUpperCase())}
+                    className="w-full rounded-xl border px-3 py-2"
+                    placeholder="EJEMPLO_ROL"
+                    disabled={isSystem}
+                    title={isSystem ? "Los roles de sistema no pueden cambiar de slug" : ""}
+                  />
+                </div>
+              </div>
+              <div className="mt-3">
+                <label className="inline-flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={!!(perms?.competitions as any)?.[k]}
-                    onChange={() => toggle(`competitions.${k}`)}
-                    disabled={role.isSystem && role.slug === "ADMIN"}
-                  />{" "}
-                  {k}
+                    checked={isSystem}
+                    onChange={(e) => setIsSystem(e.target.checked)}
+                  />
+                  <span className="text-sm">Rol de sistema</span>
                 </label>
-              ))}
-            </fieldset>
+              </div>
+            </section>
 
-            {/* Usuarios */}
-            <fieldset className="border rounded-xl p-4">
-              <legend className="px-2 text-sm font-semibold">Usuarios</legend>
-              {["read", "create", "update", "delete"].map((k) => (
-                <label key={k} className="mr-4">
-                  <input
-                    type="checkbox"
-                    checked={!!(perms?.users as any)?.[k]}
-                    onChange={() => toggle(`users.${k}`)}
-                    disabled={role.isSystem && role.slug === "ADMIN"}
-                  />{" "}
-                  {k}
-                </label>
-              ))}
-            </fieldset>
+            <section className="rounded-2xl bg-gray-100 p-4 space-y-4">
+              <h2 className="font-semibold">Permisos de navegación</h2>
+              <div className="flex flex-wrap gap-4">
+                {(["home", "competencias", "usuarios", "roles"] as const).map((k) => (
+                  <label key={k} className="inline-flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={!!perms.navbar?.[k]}
+                      onChange={() => toggle(`navbar.${k}`)}
+                    />
+                    <span className="capitalize">{k}</span>
+                  </label>
+                ))}
+              </div>
+            </section>
 
-            {/* Roles */}
-            <fieldset className="border rounded-xl p-4">
-              <legend className="px-2 text-sm font-semibold">Roles</legend>
-              {["read", "create", "update", "delete"].map((k) => (
-                <label key={k} className="mr-4">
-                  <input
-                    type="checkbox"
-                    checked={!!(perms?.roles as any)?.[k]}
-                    onChange={() => toggle(`roles.${k}`)}
-                    disabled={role.isSystem && role.slug === "ADMIN"}
-                  />{" "}
-                  {k}
-                </label>
-              ))}
-            </fieldset>
+            <section className="rounded-2xl bg-gray-100 p-4 grid md:grid-cols-2 gap-4">
+              {/* Competencias */}
+              <fieldset className="border rounded-xl p-4">
+                <legend className="px-2 text-sm font-semibold">Competencias</legend>
+                {(["read", "create", "update", "delete"] as const).map((k) => (
+                  <label key={k} className="mr-4 block">
+                    <input
+                      type="checkbox"
+                      checked={!!perms.competitions?.[k]}
+                      onChange={() => toggle(`competitions.${k}`)}
+                    />{" "}
+                    {k}
+                  </label>
+                ))}
+              </fieldset>
 
-            {role.isSystem && (
-              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                Este rol es de sistema; algunos campos se encuentran bloqueados.
-              </p>
-            )}
+              {/* Usuarios */}
+              <fieldset className="border rounded-xl p-4">
+                <legend className="px-2 text-sm font-semibold">Usuarios</legend>
+                {(["read", "create", "update", "delete"] as const).map((k) => (
+                  <label key={k} className="mr-4 block">
+                    <input
+                      type="checkbox"
+                      checked={!!perms.users?.[k]}
+                      onChange={() => toggle(`users.${k}`)}
+                    />{" "}
+                    {k}
+                  </label>
+                ))}
+              </fieldset>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+              {/* Roles */}
+              <fieldset className="border rounded-xl p-4">
+                <legend className="px-2 text-sm font-semibold">Roles</legend>
+                {(["read", "create", "update", "delete"] as const).map((k) => (
+                  <label key={k} className="mr-4 block">
+                    <input
+                      type="checkbox"
+                      checked={!!perms.roles?.[k]}
+                      onChange={() => toggle(`roles.${k}`)}
+                    />{" "}
+                    {k}
+                  </label>
+                ))}
+              </fieldset>
 
-            <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => router.back()} className="px-4 py-2 rounded-xl border">
-                Cancelar
-              </button>
-              <button disabled={saving} className="px-4 py-2 rounded-xl bg-[#4854A1] text-white">
+              {/* Inscripciones */}
+              <fieldset className="border rounded-xl p-4">
+                <legend className="px-2 text-sm font-semibold">Inscripciones</legend>
+                {(["read", "create", "delete"] as const).map((k) => (
+                  <label key={k} className="mr-4 block">
+                    <input
+                      type="checkbox"
+                      checked={!!perms.inscriptions?.[k]}
+                      onChange={() => toggle(`inscriptions.${k}`)}
+                    />{" "}
+                    {k}
+                  </label>
+                ))}
+              </fieldset>
+            </section>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-4 py-2 rounded-xl bg-[#4854A1] text-white disabled:opacity-60"
+              >
                 {saving ? "Guardando..." : "Guardar cambios"}
               </button>
+              <Link href="/roles" className="px-4 py-2 rounded-xl border">Cancelar</Link>
             </div>
           </form>
         )}

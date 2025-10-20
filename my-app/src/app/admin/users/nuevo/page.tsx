@@ -1,231 +1,262 @@
-// app/admin/users/nuevo/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import Navbar from "@/app/components/navbar";
 import Footer from "@/app/components/footer";
-import useAuthUser from "@/hooks/useAuthUser";
 
-type CreateResponse = {
-  ok: boolean;
-  message?: string;
-  user?: { id: string; name: string; email: string; role: string };
-};
-
-type RoleItem = { id: string; name: string; slug: string; isSystem: boolean };
+type RoleOption = { id: string; name: string };
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
-export default function AdminCreateUserPage() {
-  const router = useRouter();
-  const { user: me, loading: loadingMe } = useAuthUser();
+export default function CreateUserPage() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [ciudad, setCiudad] = useState("");
+  const [ci, setCi] = useState("");
+  const [password, setPassword] = useState("");
 
-  const [authChecked, setAuthChecked] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [roles, setRoles] = useState<RoleOption[]>([]);
+  const [roleId, setRoleId] = useState<string>("");
+
   const [showPwd, setShowPwd] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
 
-  const [roles, setRoles] = useState<RoleItem[]>([]);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    ciudad: "",
-    ci: "",
-    roleId: "",
-    password: "",
-    confirmPassword: "",
-  });
+  function getToken() {
+    return typeof window !== "undefined"
+      ? localStorage.getItem("ohsansi_token")
+      : null;
+  }
 
-  // Gate por permiso users.create
+  // Traer roles (solo los seleccionables desde el back)
   useEffect(() => {
-    if (loadingMe) return;
-
-    const perms = (me as any)?.roleInfo?.permissions ?? {};
-    const canCreate = !!perms?.users?.create;
-
-    if (!canCreate) {
-      router.replace("/?error=No%20autorizado");
-      return;
-    }
-    setAuthChecked(true);
-  }, [me, loadingMe, router]);
-
-  // Cargar roles para el select
-  useEffect(() => {
-    if (!authChecked) return;
     (async () => {
+      setLoading(true);
+      setMsg(null);
       try {
-        const token = typeof window !== "undefined" ? localStorage.getItem("ohsansi_token") : null;
-        const res = await fetch(`${API}/api/roles`, {
-          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        const token = getToken();
+        const res = await fetch(`${API}/api/roles?onlySelectable=1`, {
+          headers: {
+            Accept: "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          cache: "no-store",
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        const list: RoleItem[] = data?.roles ?? [];
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.message || `HTTP ${res.status}`);
+
+        const list: RoleOption[] = (json.roles || []).map((r: any) => ({
+          id: r.id,
+          name: r.name,
+        }));
+
         setRoles(list);
-        if (list.length && !formData.roleId) {
-          setFormData((f) => ({ ...f, roleId: list[0].id }));
-        }
-      } catch (e) {
-        console.error(e);
-        setErrorMsg("No se pudieron cargar los roles");
+      } catch (e: any) {
+        setMsg(e.message || "No se pudieron cargar los roles");
+      } finally {
+        setLoading(false);
       }
     })();
-  }, [authChecked]);
+  }, []);
+
+  // Filtra para mostrar solo Estudiante y Tutor si existen;
+  // si no existen, usa todos.
+  const roleOptions = useMemo(() => {
+    const preferred = roles.filter((r) =>
+      ["ESTUDIANTE", "TUTOR"].includes(r.name.toUpperCase())
+    );
+    return preferred.length > 0 ? preferred : roles;
+  }, [roles]);
+
+  useEffect(() => {
+    if (roleOptions.length && !roleId) {
+      setRoleId(roleOptions[0].id);
+    }
+  }, [roleOptions, roleId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setErrorMsg(null);
+    setMsg(null);
 
-    if (formData.password.length < 6) {
-      setErrorMsg("La contraseña debe tener al menos 6 caracteres");
+    if (password.length < 6) {
+      setMsg("La contraseña debe tener al menos 6 caracteres");
       return;
     }
-    if (!formData.roleId) {
-      setErrorMsg("Seleccione un rol");
+    if (!roleId) {
+      setMsg("Seleccione un rol válido");
       return;
     }
 
     try {
-      setLoading(true);
-      const token = localStorage.getItem("ohsansi_token");
-      if (!token) {
-        setErrorMsg("Sesión inválida");
-        return;
-      }
-
-      // POST a /api/users (nuevo)
+      setSaving(true);
+      const token = getToken();
       const res = await fetch(`${API}/api/users`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          ciudad: formData.ciudad || null, // se normaliza en el backend
-          ci: formData.ci || null,
-          roleId: formData.roleId,
+          name,
+          email,
+          password,
+          ciudad,
+          ci: ci || null,
+          roleId,
         }),
       });
-
-      const data: CreateResponse = await res.json();
-
-      if (!res.ok || !data.ok) {
-        setErrorMsg(data.message ?? `Error al crear el usuario (HTTP ${res.status})`);
-        return;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.ok === false) {
+        throw new Error(data?.message || `HTTP ${res.status}`);
       }
 
-      router.push("/usuarios?message=Usuario%20creado");
-    } catch {
-      setErrorMsg("Error al crear el usuario. Intente nuevamente.");
+      setMsg("Usuario creado correctamente");
+      // limpiar
+      setName("");
+      setEmail("");
+      setCiudad("");
+      setCi("");
+      setPassword("");
+      if (roleOptions.length) setRoleId(roleOptions[0].id);
+    } catch (err: any) {
+      setMsg(err.message || "Error al crear el usuario");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   }
 
-  if (!authChecked) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <p className="text-sm text-gray-600">Verificando permisos…</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen flex flex-col bg-white text-black">
       <Navbar />
 
-      <main className="flex-1 flex items-center justify-center py-4">
+      <main className="flex-1 flex items-center justify-center py-6">
+        {/* Card centrada al estilo del registro público */}
         <div className="w-full max-w-md rounded-2xl bg-gray-300 shadow-xl p-5">
+          {/* sin el título “Oh! Sansi!” ni el texto de login */}
           <div className="text-center mb-5">
-            <h1 className="text-2xl font-extrabold">
-              <span className="text-[#3c468e]">Oh!</span>{" "}
-              <span className="text-[#e34b5a]">Sansi!</span>
+            <h1 className="text-2xl font-extrabold text-[#3c468e]">
+              Crear usuario
             </h1>
-            <p className="text-sm text-gray-600 mt-1">Crear usuario</p>
+            <p className="text-sm text-gray-700 mt-1">
+              Complete los datos para crear la cuenta
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <label className="block">
-              <span className="text-sm font-medium text-black">Nombre completo</span>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="mt-1 w-full rounded-lg text-black border border-black bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#4854A1]"
-                placeholder="Ingrese su nombre completo"
-                required
-              />
-            </label>
+          {loading ? (
+            <div className="h-24 rounded-xl bg-gray-200 animate-pulse" />
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-3">
+              {msg && (
+                <p
+                  className={`text-sm rounded-lg p-2 border ${
+                    /error|http|no se pudo|no se pudieron|inválid/i.test(
+                      msg ?? ""
+                    )
+                      ? "bg-red-50 border-red-200 text-red-700"
+                      : "bg-green-50 border-green-200 text-green-700"
+                  }`}
+                >
+                  {msg}
+                </p>
+              )}
 
-            <label className="block">
-              <span className="text-sm font-medium text-black">Correo electrónico</span>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="mt-1 w-full rounded-lg text-black border border-black bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#4854A1]"
-                placeholder="nombre@correo.com"
-                autoComplete="email"
-                required
-              />
-            </label>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label className="block">
-                <span className="text-sm font-medium text-black">Ciudad</span>
+                <span className="text-sm font-medium text-black">
+                  Nombre completo
+                </span>
                 <input
                   type="text"
-                  value={formData.ciudad}
-                  onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   className="mt-1 w-full rounded-lg text-black border border-black bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#4854A1]"
-                  placeholder="Cochabamba"
+                  placeholder="Ingrese su nombre completo"
+                  required
                 />
               </label>
 
               <label className="block">
-                <span className="text-sm font-medium text-black">Carnet de identidad</span>
+                <span className="text-sm font-medium text-black">
+                  Correo electrónico
+                </span>
                 <input
-                  type="text"
-                  value={formData.ci}
-                  onChange={(e) => setFormData({ ...formData, ci: e.target.value })}
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="mt-1 w-full rounded-lg text-black border border-black bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#4854A1]"
-                  placeholder="12345678"
+                  placeholder="nombre@correo.com"
+                  autoComplete="email"
+                  required
                 />
               </label>
-            </div>
 
-            <label className="block">
-              <span className="text-sm font-medium text-black">Rol</span>
-              <select
-                value={formData.roleId}
-                onChange={(e) => setFormData({ ...formData, roleId: e.target.value })}
-                className="mt-1 w-full rounded-lg text-black border border-black bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#4854A1]"
-              >
-                {roles.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name} {r.isSystem ? "(sistema)" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="text-sm font-medium text-black">Ciudad</span>
+                  <select
+                    value={ciudad}
+                    onChange={(e) => setCiudad(e.target.value)}
+                    className="mt-1 w-full rounded-lg text-black border border-black bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#4854A1]"
+                    required
+                  >
+                    <option value="">Seleccione una ciudad</option>
+                    <option value="PANDO">Pando</option>
+                    <option value="LAPAZ">La Paz</option>
+                    <option value="COCHABAMBA">Cochabamba</option>
+                    <option value="BENI">Beni</option>
+                    <option value="SANTACRUZ">Santa Cruz</option>
+                    <option value="ORURO">Oruro</option>
+                    <option value="POTOSI">Potosí</option>
+                    <option value="CHUQUISACA">Chuquisaca</option>
+                    <option value="TARIJA">Tarija</option>
+                  </select>
+                </label>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="text-sm font-medium text-black">
+                    Carnet de identidad
+                  </span>
+                  <input
+                    type="text"
+                    value={ci}
+                    onChange={(e) => setCi(e.target.value)}
+                    className="mt-1 w-full rounded-lg text-black border border-black bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#4854A1]"
+                    placeholder="12345678"
+                  />
+                </label>
+              </div>
+
               <label className="block">
-                <span className="text-sm font-medium text-black">Contraseña</span>
+                <span className="text-sm font-medium text-black">Rol</span>
+                <select
+                  className="mt-1 w-full rounded-lg text-black border border-black bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#4854A1]"
+                  value={roleId}
+                  onChange={(e) => setRoleId(e.target.value)}
+                  required
+                >
+                  {roles.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-black">
+                  Contraseña
+                </span>
                 <div className="mt-1 flex items-center rounded-lg border border-black focus-within:ring-2 focus-within:ring-[#4854A1]">
                   <input
                     type={showPwd ? "text" : "password"}
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className="w-full rounded-lg bg-white text-black px-3 py-2 text-sm outline-none"
                     placeholder="••••••••"
                     autoComplete="new-password"
                     required
+                    minLength={6}
                   />
                   <button
                     type="button"
@@ -236,22 +267,27 @@ export default function AdminCreateUserPage() {
                   </button>
                 </div>
               </label>
-            </div>
 
-            {errorMsg && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
-                {errorMsg}
-              </p>
-            )}
+              <div className="pt-1 flex items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="w-full rounded-lg bg-[#4854A1] text-white py-2 font-semibold hover:bg-[#3a468a] transition disabled:opacity-60 text-sm"
+                >
+                  {saving ? "Creando..." : "Crear usuario"}
+                </button>
+              </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-[#4854A1] text-white py-2 font-semibold hover:bg-[#3a468a] transition disabled:opacity-60 text-sm"
-            >
-              {loading ? "Creando usuario..." : "Crear usuario"}
-            </button>
-          </form>
+              <div className="flex justify-end">
+                <Link
+                  href="/usuarios"
+                  className="text-xs underline text-gray-700 hover:text-black"
+                >
+                  Cancelar y volver
+                </Link>
+              </div>
+            </form>
+          )}
         </div>
       </main>
 
