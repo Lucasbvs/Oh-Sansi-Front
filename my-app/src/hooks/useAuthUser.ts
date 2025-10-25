@@ -2,7 +2,17 @@
 import { useEffect, useState } from "react";
 
 type RoleInfo = { id: string; name: string; slug: string; permissions?: any };
-type MeUser = { id: string; name: string; email: string; role: string; roleInfo?: RoleInfo };
+type MeUser = { 
+  id: string; 
+  name: string; 
+  email: string; 
+  role: string; 
+  roleInfo?: RoleInfo;
+  // ✅ CAMPOS NUEVOS AGREGADOS
+  documentoIdentidad?: string | null;
+  ciudad?: string;
+  activo?: boolean;
+};
 type MeResponse = { ok: boolean; user?: MeUser };
 
 function useAuthUserHook() {
@@ -22,8 +32,11 @@ function useAuthUserHook() {
         const res = await fetch(`${API}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
         const data: MeResponse = await res.json();
 
-        if (res.ok && data?.ok && data.user) { if (alive) setUser(data.user); }
-        else { if (alive) setUser(null); }
+        if (res.ok && data?.ok && data.user) { 
+          if (alive) setUser(data.user); 
+        } else { 
+          if (alive) setUser(null); 
+        }
       } catch {
         if (alive) setError("No se pudo obtener el usuario");
       } finally {
