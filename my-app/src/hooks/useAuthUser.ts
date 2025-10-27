@@ -1,3 +1,4 @@
+// src/hooks/useAuthUser.ts - VERSIÓN ACTUALIZADA
 "use client";
 import { useEffect, useState } from "react";
 
@@ -8,10 +9,10 @@ type MeUser = {
   email: string; 
   role: string; 
   roleInfo?: RoleInfo;
-  // ✅ CAMPOS NUEVOS AGREGADOS
   documentoIdentidad?: string | null;
   ciudad?: string;
   activo?: boolean;
+  tutorId?: string; 
 };
 type MeResponse = { ok: boolean; user?: MeUser };
 

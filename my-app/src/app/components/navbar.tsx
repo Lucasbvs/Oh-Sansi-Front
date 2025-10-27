@@ -10,6 +10,7 @@ import {
   FaUsers,
   FaShieldAlt,
   FaBars,
+  FaChalkboardTeacher,
 } from "react-icons/fa";
 import useAuthUser from "@/hooks/useAuthUser";
 
@@ -23,8 +24,11 @@ export default function Navbar() {
   const canSeeUsuarios = !!perms?.users?.read;
   const canSeeMisComp = !!perms?.inscriptions?.read;
   const isAdmin = (user?.role ?? "") === "ADMIN";
+  
+  
+  const isEstudiante = user?.role === "ESTUDIANTE";
 
-  // --- NUEVO: control del menú (junto a las flechas) ---
+
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -95,13 +99,19 @@ export default function Navbar() {
             icon={FaTrophy}
           />
         )}
+        
+        {}
+        {isEstudiante && (
+          <NavItem href="/tutores" label="Tutores" icon={FaChalkboardTeacher} />
+        )}
+        
         {canSeeUsuarios && (
           <NavItem href="/usuarios" label="Usuarios" icon={FaUsers} />
         )}
         {isAdmin && <NavItem href="/roles" label="Roles" icon={FaShieldAlt} />}
       </div>
 
-      {/* Flechas + botón de menú a la derecha */}
+      {}
       <div className="flex space-x-2 relative" ref={menuRef}>
         <button
           onClick={() => history.back()}
@@ -120,7 +130,7 @@ export default function Navbar() {
           <FaArrowRight className="text-2xl" />
         </button>
 
-        {/* --- NUEVO: botón menú (idéntico formato/tamaño que flechas) --- */}
+        {}
         <button
           onClick={() => setMenuOpen((v) => !v)}
           aria-label="Menú"
@@ -136,7 +146,7 @@ export default function Navbar() {
             role="menu"
             className="absolute right-0 top-[calc(100%+8px)] w-44 rounded-lg bg-white text-black shadow-lg z-50 overflow-hidden"
           >
-            {/* NUEVO: Perfil */}
+            {/* Perfil */}
             <button
               role="menuitem"
               onClick={() => {
@@ -148,7 +158,7 @@ export default function Navbar() {
               Perfil
             </button>
 
-            {/* EXISTENTE: Cerrar sesión */}
+            {/* Cerrar sesión */}
             <button
               role="menuitem"
               onClick={handleLogout}

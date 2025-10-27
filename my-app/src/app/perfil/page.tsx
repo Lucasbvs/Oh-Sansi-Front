@@ -5,7 +5,7 @@ import Navbar from "@/app/components/navbar";
 import Footer from "@/app/components/footer";
 import useAuthUser from "@/hooks/useAuthUser";
 import Link from "next/link";
-import { FaUser, FaTrophy, FaUserGraduate } from "react-icons/fa";
+import { FaUser, FaTrophy, FaUserGraduate, FaExclamationTriangle, FaMapMarkerAlt } from "react-icons/fa";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -15,12 +15,56 @@ type MisInscripcion = {
   fechaInscripcion?: string;
 };
 
+type TutorInfo = {
+  id: string;
+  nombre: string;
+  email: string;
+  ciudad: string;
+};
+
 export default function PerfilPage() {
   const { user, loading, error } = useAuthUser();
-
+  const [tutor, setTutor] = useState<TutorInfo | null>(null);
+  const [loadingTutor, setLoadingTutor] = useState(true);
   const [inscripciones, setInscripciones] = useState<MisInscripcion[] | null>(null);
   const [loadingIns, setLoadingIns] = useState(true);
 
+  // Cargar información del tutor
+  useEffect(() => {
+    const fetchTutor = async () => {
+      try {
+        const token = localStorage.getItem("ohsansi_token");
+        if (!token) {
+          setLoadingTutor(false);
+          return;
+        }
+
+        const res = await fetch(`${API}/api/tutores/mi-tutor`, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && data.tutor) {
+            setTutor(data.tutor);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching tutor:", error);
+      } finally {
+        setLoadingTutor(false);
+      }
+    };
+
+    if (user) {
+      fetchTutor();
+    }
+  }, [user]);
+
+  // Cargar inscripciones
   useEffect(() => {
     const fetchInscripciones = async () => {
       try {
@@ -41,12 +85,9 @@ export default function PerfilPage() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         
-        console.log("DEBUG - Datos de inscripciones:", data); 
-        
         const list = data?.items ?? data?.competitions ?? data ?? [];
 
         const norm: MisInscripcion[] = list.map((row: any) => {
-          
           const fechaInscripcion = row?.fechaInscripcion || row?.createdAt;
           
           if (row?.competition) {
@@ -72,7 +113,6 @@ export default function PerfilPage() {
           };
         });
 
-        console.log("DEBUG - Inscripciones normalizadas:", norm);
         setInscripciones(norm);
       } catch (error) {
         console.error("Error fetching inscripciones:", error);
@@ -86,6 +126,30 @@ export default function PerfilPage() {
       fetchInscripciones();
     }
   }, [user]);
+
+  
+  const handleDesasignarTutor = async () => {
+    try {
+      const token = localStorage.getItem("ohsansi_token");
+      const res = await fetch(`${API}/api/tutores/desasignar`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }
+      });
+      
+      const data = await res.json();
+      if (data.ok) {
+        setTutor(null);
+        
+        window.location.reload();
+      } else {
+        console.error(data.message || "Error desasignando tutor");
+      }
+    } catch (err) {
+      console.error("Error desasignando tutor");
+    }
+  };
 
   // Si no hay usuario y no está loading, redirigir o mostrar mensaje
   if (!loading && !user) {
@@ -163,6 +227,63 @@ export default function PerfilPage() {
           )}
         </section>
 
+        {/* Tutor asignado*/}
+        <section className="border rounded-2xl p-4 md:p-6 mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-full bg-[#4854A1] opacity-90 flex items-center justify-center">
+              <FaUserGraduate className="text-white text-lg" />
+            </div>
+            <h2 className="text-lg font-semibold">Tutor asignado</h2>
+          </div>
+
+          {loadingTutor ? (
+            <div className="h-24 bg-gray-100 rounded-xl animate-pulse" />
+          ) : tutor ? (
+            <div className="bg-gray-100 rounded-xl p-4">
+              <div className="flex justify-between items-start">
+                <div className="space-y-2">
+                  <p className="font-medium text-lg">{tutor.nombre}</p>
+                  <p className="text-gray-600">
+                    <span className="font-medium">Email:</span> {tutor.email}
+                  </p>
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <FaMapMarkerAlt />
+                    <span>{tutor.ciudad}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={handleDesasignarTutor}
+                  className="px-4 py-2 bg-[#4854A1] text-white rounded-lg hover:bg-[#3a468a] text-sm"
+                >
+                  Desasignar
+                </button>
+              </div>
+            </div>
+          ) : user?.role === "ESTUDIANTE" ? (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+              <div className="flex items-center gap-3">
+                <FaExclamationTriangle className="text-yellow-600 text-xl" />
+                <div>
+                  <p className="text-yellow-800 font-medium">No tienes tutor asignado</p>
+                  <p className="text-yellow-700 text-sm">
+                    Necesitas un tutor para poder inscribirte en competencias.
+                  </p>
+                  <Link 
+                    href="/tutores" 
+                    className="inline-block mt-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm"
+                  >
+                    Asignar Tutor
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gray-100 rounded-xl p-4">
+              <p className="text-gray-600">No aplica para tu rol.</p>
+            </div>
+          )}
+        </section>
+
         {/* Competencias inscritas */}
         <section className="border rounded-2xl p-4 md:p-6 mb-6">
           <div className="flex items-center gap-3 mb-4">
@@ -224,19 +345,6 @@ export default function PerfilPage() {
               </table>
             </div>
           )}
-        </section>
-
-        {/* Tutor asignado */}
-        <section className="border rounded-2xl p-4 md:p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-9 h-9 rounded-full bg-[#4854A1] opacity-90 flex items-center justify-center">
-              <FaUserGraduate className="text-white text-lg" />
-            </div>
-            <h2 className="text-lg font-semibold">Tutor asignado</h2>
-          </div>
-          <div className="bg-gray-100 rounded-xl p-4">
-            <p className="text-gray-600">Sin tutor asignado por el momento.</p>
-          </div>
         </section>
       </main>
 

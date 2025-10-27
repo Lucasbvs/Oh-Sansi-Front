@@ -96,7 +96,7 @@ export default function CompetitionDetailPage() {
 
   useEffect(() => {
     load();
-  }, [id]); // ok
+  }, [id]);
 
   const etapaActual = useMemo(() => {
     if (!comp?.etapas?.length) return null;
@@ -113,9 +113,9 @@ export default function CompetitionDetailPage() {
   }, [comp]);
 
   const insc = useMemo(() => {
-  if (!comp?.etapas?.length) return null;
-  return comp.etapas.find(e => e.etapa === "INSCRIPCION") ?? null;
-}, [comp]);
+    if (!comp?.etapas?.length) return null;
+    return comp.etapas.find(e => e.etapa === "INSCRIPCION") ?? null;
+  }, [comp]);
 
   const inscAbierta = useMemo(() => {
     if (!insc) return false;
@@ -126,6 +126,12 @@ export default function CompetitionDetailPage() {
     return now >= ini && (!fin || now <= fin);
   }, [insc]);
 
+  
+  const tieneTutor = useMemo(() => {
+    if (!user || user.role !== "ESTUDIANTE") return true; 
+    return !!(user as any)?.tutorId;
+  }, [user]);
+
   const puedeInscribirse = useMemo(() => {
     if (!comp) return false;
     if (!comp.estado) return false;
@@ -133,8 +139,10 @@ export default function CompetitionDetailPage() {
     if (!perms?.inscriptions?.create && !loadingUser) return false;
     if (mine) return false;
     if (!inscAbierta) return false;
+   
+    if (!tieneTutor) return false;
     return true;
-  }, [comp, inscAbierta, mine, authToken, perms, loadingUser]);
+  }, [comp, inscAbierta, mine, authToken, perms, loadingUser, tieneTutor]);
 
   const puedeDesinscribirse = useMemo(() => {
     if (!comp) return false;
@@ -149,6 +157,13 @@ export default function CompetitionDetailPage() {
       router.push("/login?next=" + encodeURIComponent(`/competencias/${comp.id}`));
       return;
     }
+    
+    
+    if (user?.role === "ESTUDIANTE" && !tieneTutor) {
+      setMsg("No puedes inscribirte sin tener un tutor asignado. Por favor, asigna un tutor primero desde la sección de Tutores.");
+      return;
+    }
+    
     setEnrolling(true);
     setMsg(null);
     try {
@@ -211,6 +226,31 @@ export default function CompetitionDetailPage() {
                 }`}
               >
                 {msg}
+              </div>
+            )}
+
+            {}
+            {user?.role === "ESTUDIANTE" && !tieneTutor && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                <div className="flex items-center gap-3">
+                  <div className="text-yellow-600">
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-yellow-800">Tutor requerido</h3>
+                    <p className="text-yellow-700 text-sm">
+                      Necesitas asignarte un tutor antes de poder inscribirte en competencias.
+                    </p>
+                    <button
+                      onClick={() => router.push("/tutores")}
+                      className="mt-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm"
+                    >
+                      Asignar Tutor
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -293,7 +333,10 @@ export default function CompetitionDetailPage() {
 
                 {!puedeInscribirse && !puedeDesinscribirse && (
                   <span className="text-sm text-gray-600">
-                    Debe estar abierta la etapa de INSCRIPCION y necesitas iniciar sesión con permisos válidos.
+                    {user?.role === "ESTUDIANTE" && !tieneTutor 
+                      ? "Necesitas asignar un tutor para inscribirte."
+                      : "Debe estar abierta la etapa de INSCRIPCION y necesitas iniciar sesión con permisos válidos."
+                    }
                   </span>
                 )}
 
