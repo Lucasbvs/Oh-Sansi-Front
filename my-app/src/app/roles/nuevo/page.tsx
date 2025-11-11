@@ -169,6 +169,8 @@ export default function NuevoRolPage() {
                 {k}
               </label>
             ))}
+          </fieldset>
+
           {/* Tutorías */}
           <fieldset className="border rounded-xl p-4">
             <legend className="px-2 text-sm font-semibold">Tutorías</legend>

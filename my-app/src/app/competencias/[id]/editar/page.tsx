@@ -27,10 +27,11 @@ const ALL_ETAPAS: { api: EtapaKey; ui: EtapaUi }[] = [
   { api: "PREMIACION",  ui: "Premiación"  },
 ];
 
-type EtapaItem = {
-  etapa: EtapaKey;
+type Fase = {
+  id?: string;
+  nombre: string;
   fechaInicio: string;
-  fechaFin?: string | null;
+  fechaFin: string;
 };
 
 type CompetitionApi = {

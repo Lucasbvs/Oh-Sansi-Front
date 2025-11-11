@@ -32,6 +32,10 @@ export default function Navbar() {
   
   const isEstudiante = user?.role === "ESTUDIANTE";
   const isTutor = user?.role === "TUTOR";
+  const canSeeEvaluaciones = !!perms?.evaluaciones?.read;
+
+  const canSeeTutorias = !!perms?.tutorias?.read;
+  const canSeeTutoriasNav = !!perms?.navbar?.tutorias;
 
   //Mostrar botón de Tutorías basado en permisos o roles específicos
   const shouldShowTutorias = (canSeeTutorias || canSeeTutoriasNav) || isEstudiante || isTutor || isAdmin;
