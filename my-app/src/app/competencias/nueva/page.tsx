@@ -28,10 +28,10 @@ export default function NuevaCompetenciaPage() {
   const [forma, setForma] = useState("");
   const [fechaInicio, setFechaInicio] = useState("");
   
-  // Etapa actual (al lado de forma de calificación)
+  
   const [etapaActual, setEtapaActual] = useState<EtapaUi>("Inscripción");
 
-  // Fases (las que ya tenías)
+ 
   const [fases, setFases] = useState(
     [] as { nombre: string; fechaInicio: string; fechaFin: string }[]
   );
@@ -51,6 +51,44 @@ export default function NuevaCompetenciaPage() {
     setFases([...fases, { nombre: "", fechaInicio: "", fechaFin: "" }]);
   }
 
+  
+  function validarFasesAntesDeEnviar() {
+    const desarrollo = etapas.DESARROLLO;
+    
+    
+    if (!desarrollo.inicio || !desarrollo.fin) {
+      return "La etapa de Desarrollo necesita fechas de inicio y fin para validar las fases";
+    }
+    
+    const inicioDesarrollo = new Date(desarrollo.inicio);
+    const finDesarrollo = new Date(desarrollo.fin);
+    
+    // Verificar cada fase
+    for (const fase of fases) {
+      if (!fase.fechaInicio || !fase.fechaFin) {
+        return `La fase "${fase.nombre || 'Sin nombre'}" necesita fechas de inicio y fin`;
+      }
+      
+      const inicioFase = new Date(fase.fechaInicio);
+      const finFase = new Date(fase.fechaFin);
+      
+   
+      if (finFase < inicioFase) {
+        return `La fase "${fase.nombre}" tiene fecha de fin (${finFase.toLocaleDateString()}) anterior a la fecha de inicio (${inicioFase.toLocaleDateString()})`;
+      }
+      
+  
+      if (inicioFase < inicioDesarrollo) {
+        return `La fase "${fase.nombre}" inicia antes del Desarrollo (${inicioDesarrollo.toLocaleDateString()})`;
+      }
+      if (finFase > finDesarrollo) {
+        return `La fase "${fase.nombre}" finaliza después del Desarrollo (${finDesarrollo.toLocaleDateString()})`;
+      }
+    }
+    
+    return null;
+  }
+
   async function handleSubmit(e: any) {
     e.preventDefault();
     setError(null);
@@ -60,6 +98,13 @@ export default function NuevaCompetenciaPage() {
         const r = etapas[api];
         if (!r.inicio) throw new Error(`Falta fecha de inicio en ${api}.`);
         if (api !== "CORRECCION" && !r.fin) throw new Error(`Falta fecha de fin en ${api}.`);
+      }
+
+      
+      const errorFases = validarFasesAntesDeEnviar();
+      if (errorFases) {
+        setError(errorFases);
+        return;
       }
 
       const token = localStorage.getItem("ohsansi_token");
@@ -77,13 +122,13 @@ export default function NuevaCompetenciaPage() {
           modalidad,
           formaCalificacion: forma,
           fases,
-          // Nuevo:
+          
           etapas: ALL_ETAPAS.map(({ api }) => ({
             etapa: api,
             fechaInicio: etapas[api].inicio,
             fechaFin: api === "CORRECCION" ? (etapas[api].fin ?? null) : etapas[api].fin,
           })),
-          etapaActual: // el backend la setea a INSCRIPCION por defecto, pero igual podemos enviar
+          etapaActual: 
             {
               "Inscripción": "INSCRIPCION",
               "Desarrollo": "DESARROLLO",
@@ -94,8 +139,18 @@ export default function NuevaCompetenciaPage() {
           fechaInicio,
         }),
       });
+      
       const data = await res.json();
-      if (!res.ok || data?.ok === false) throw new Error(data?.message || `HTTP ${res.status}`);
+      
+      
+      if (!res.ok || data?.ok === false) {
+        
+        if (data.message?.includes("fase") || data.message?.includes("DESARROLLO")) {
+          throw new Error(`Error de validación: ${data.message}`);
+        }
+        throw new Error(data?.message || `Error HTTP ${res.status}`);
+      }
+      
       router.push("/home");
     } catch (err: any) {
       setError(err.message);
@@ -225,42 +280,70 @@ export default function NuevaCompetenciaPage() {
           <div className="mt-2">
             <h2 className="font-semibold text-black mb-2">Etapas</h2>
             <div className="space-y-3">
-              {ALL_ETAPAS.map(({ api, ui }) => (
-                <div key={api} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-                  <div>
-                    <label className="text-sm font-medium">Etapa</label>
-                    <input value={ui} disabled className="mt-1 w-full rounded-lg border px-3 py-2 bg-gray-100" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Inicio</label>
-                    <input
-                      type="date"
-                      className="mt-1 w-full rounded-lg border px-3 py-2"
-                      value={etapas[api].inicio}
-                      onChange={(e) => setEtapas(p => ({ ...p, [api]: { ...p[api], inicio: e.target.value } }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Fin{api === "CORRECCION" ? " (opcional)" : ""}</label>
-                    <input
-                      type="date"
-                      className="mt-1 w-full rounded-lg border px-3 py-2"
-                      value={etapas[api].fin ?? ""}
-                      onChange={(e) => setEtapas(p => ({ ...p, [api]: { ...p[api], fin: e.target.value || null } }))}
-                    />
-                  </div>
+              {/* Inscripción */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                <div>
+                  <label className="text-sm font-medium">Etapa</label>
+                  <input value="Inscripción" disabled className="mt-1 w-full rounded-lg border px-3 py-2 bg-gray-100" />
                 </div>
-              ))}
+                <div>
+                  <label className="text-sm font-medium">Inicio</label>
+                  <input
+                    type="date"
+                    className="mt-1 w-full rounded-lg border px-3 py-2"
+                    value={etapas.INSCRIPCION.inicio}
+                    onChange={(e) => setEtapas(p => ({ ...p, INSCRIPCION: { ...p.INSCRIPCION, inicio: e.target.value } }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Fin</label>
+                  <input
+                    type="date"
+                    className="mt-1 w-full rounded-lg border px-3 py-2"
+                    value={etapas.INSCRIPCION.fin ?? ""}
+                    onChange={(e) => setEtapas(p => ({ ...p, INSCRIPCION: { ...p.INSCRIPCION, fin: e.target.value || null } }))}
+                  />
+                </div>
+              </div>
+
+              {/* Desarrollo */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                <div>
+                  <label className="text-sm font-medium">Etapa</label>
+                  <input value="Desarrollo" disabled className="mt-1 w-full rounded-lg border px-3 py-2 bg-gray-100" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Inicio</label>
+                  <input
+                    type="date"
+                    className="mt-1 w-full rounded-lg border px-3 py-2"
+                    value={etapas.DESARROLLO.inicio}
+                    onChange={(e) => setEtapas(p => ({ ...p, DESARROLLO: { ...p.DESARROLLO, inicio: e.target.value } }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Fin</label>
+                  <input
+                    type="date"
+                    className="mt-1 w-full rounded-lg border px-3 py-2"
+                    value={etapas.DESARROLLO.fin ?? ""}
+                    onChange={(e) => setEtapas(p => ({ ...p, DESARROLLO: { ...p.DESARROLLO, fin: e.target.value || null } }))}
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Fases */}
+          {}
           <div className="mt-4">
             <h2 className="font-semibold text-black mb-2">Fases</h2>
+            <div className="mb-3 text-sm text-gray-600">
+              <p>Las fases deben estar dentro del rango de fechas de la etapa de Desarrollo</p>
+            </div>
             {fases.map((f, i) => (
               <div key={i} className="grid grid-cols-3 gap-2 mb-2">
                 <input
-                  placeholder="Nombre"
+                  placeholder="Nombre de la fase"
                   value={f.nombre}
                   onChange={(e) => {
                     const updated = [...fases];
@@ -278,6 +361,7 @@ export default function NuevaCompetenciaPage() {
                     setFases(updated);
                   }}
                   className="border rounded-lg px-3 py-2"
+                  placeholder="Inicio"
                 />
                 <input
                   type="date"
@@ -288,6 +372,7 @@ export default function NuevaCompetenciaPage() {
                     setFases(updated);
                   }}
                   className="border rounded-lg px-3 py-2"
+                  placeholder="Fin"
                 />
               </div>
             ))}
@@ -300,10 +385,98 @@ export default function NuevaCompetenciaPage() {
             </button>
           </div>
 
-          {/* Error */}
-          {error && <p className="text-red-600">{error}</p>}
+          {}
+          <div className="mt-4">
+            <div className="space-y-3">
+              {/* Evaluación */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                <div>
+                  <label className="text-sm font-medium">Etapa</label>
+                  <input value="Evaluación" disabled className="mt-1 w-full rounded-lg border px-3 py-2 bg-gray-100" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Inicio</label>
+                  <input
+                    type="date"
+                    className="mt-1 w-full rounded-lg border px-3 py-2"
+                    value={etapas.EVALUACION.inicio}
+                    onChange={(e) => setEtapas(p => ({ ...p, EVALUACION: { ...p.EVALUACION, inicio: e.target.value } }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Fin</label>
+                  <input
+                    type="date"
+                    className="mt-1 w-full rounded-lg border px-3 py-2"
+                    value={etapas.EVALUACION.fin ?? ""}
+                    onChange={(e) => setEtapas(p => ({ ...p, EVALUACION: { ...p.EVALUACION, fin: e.target.value || null } }))}
+                  />
+                </div>
+              </div>
 
-          {/* Submit */}
+              {/* Corrección */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                <div>
+                  <label className="text-sm font-medium">Etapa</label>
+                  <input value="Corrección" disabled className="mt-1 w-full rounded-lg border px-3 py-2 bg-gray-100" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Inicio</label>
+                  <input
+                    type="date"
+                    className="mt-1 w-full rounded-lg border px-3 py-2"
+                    value={etapas.CORRECCION.inicio}
+                    onChange={(e) => setEtapas(p => ({ ...p, CORRECCION: { ...p.CORRECCION, inicio: e.target.value } }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Fin (opcional)</label>
+                  <input
+                    type="date"
+                    className="mt-1 w-full rounded-lg border px-3 py-2"
+                    value={etapas.CORRECCION.fin ?? ""}
+                    onChange={(e) => setEtapas(p => ({ ...p, CORRECCION: { ...p.CORRECCION, fin: e.target.value || null } }))}
+                  />
+                </div>
+              </div>
+
+              {/* Premiación */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                <div>
+                  <label className="text-sm font-medium">Etapa</label>
+                  <input value="Premiación" disabled className="mt-1 w-full rounded-lg border px-3 py-2 bg-gray-100" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Inicio</label>
+                  <input
+                    type="date"
+                    className="mt-1 w-full rounded-lg border px-3 py-2"
+                    value={etapas.PREMIACION.inicio}
+                    onChange={(e) => setEtapas(p => ({ ...p, PREMIACION: { ...p.PREMIACION, inicio: e.target.value } }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Fin</label>
+                  <input
+                    type="date"
+                    className="mt-1 w-full rounded-lg border px-3 py-2"
+                    value={etapas.PREMIACION.fin ?? ""}
+                    onChange={(e) => setEtapas(p => ({ ...p, PREMIACION: { ...p.PREMIACION, fin: e.target.value || null } }))}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-red-700 font-medium">Error de validación:</p>
+              <p className="text-red-600 text-sm mt-1">{error}</p>
+            </div>
+          )}
+
+          {}
           <button
             type="submit"
             className="bg-[#4854A1] text-white w-full rounded-lg py-2 font-semibold hover:bg-[#3a468a]"

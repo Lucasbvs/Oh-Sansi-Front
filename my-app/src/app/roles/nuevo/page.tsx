@@ -13,6 +13,7 @@ type Perms = {
   roles?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
   inscriptions?: Partial<Record<"read" | "create" | "delete", boolean>>;
   evaluaciones?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
+  tutorias?: Partial<Record<"read" | "manage", boolean>>;
 };
 
 function generarSlug(nombre: string) {
@@ -21,7 +22,7 @@ function generarSlug(nombre: string) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase()
-    .replace(/\s+/g, "_");
+    .replace(/\s+/g, "_"); 
 }
 
 export default function NuevoRolPage() {
@@ -35,15 +36,13 @@ export default function NuevoRolPage() {
     roles: { read: false, create: false, update: false, delete: false },
     inscriptions: { read: true, create: true, delete: false },
     evaluaciones: { read: false, create: false, update: false, delete: false },
+    tutorias: { read: false, manage: false },
   });
-
-
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function toggle(path: string) {
-    // path: "competitions.read" | "users.create" | "roles.update"
     const [g, k] = path.split(".");
     setPerms((prev) => {
       const base = prev ?? {};
@@ -170,6 +169,19 @@ export default function NuevoRolPage() {
                 {k}
               </label>
             ))}
+          {/* Tutorías */}
+          <fieldset className="border rounded-xl p-4">
+            <legend className="px-2 text-sm font-semibold">Tutorías</legend>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={!!perms?.tutorias?.read}
+                  onChange={() => toggle(`tutorias.read`)}
+                />
+                <span>read</span>
+              </label>
+            </div>
           </fieldset>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
