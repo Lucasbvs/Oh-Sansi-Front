@@ -11,6 +11,7 @@ import {
   FaShieldAlt,
   FaBars,
   FaChalkboardTeacher,
+  FaUserGraduate,
 } from "react-icons/fa";
 import useAuthUser from "@/hooks/useAuthUser";
 
@@ -20,14 +21,23 @@ export default function Navbar() {
   const { user } = useAuthUser();
 
   const perms = (user as any)?.roleInfo?.permissions ?? {};
+  
+  // Permisos existentes
   const canSeeCompetencias = !!perms?.competitions?.read;
   const canSeeUsuarios = !!perms?.users?.read;
   const canSeeMisComp = !!perms?.inscriptions?.read;
+  
+  //Permisos para Tutorías
+  const canSeeTutorias = !!perms?.tutorias?.read;
+  const canSeeTutoriasNav = !!perms?.navbar?.tutorias;
+  
+  
   const isAdmin = (user?.role ?? "") === "ADMIN";
-  
-  
   const isEstudiante = user?.role === "ESTUDIANTE";
+  const isTutor = user?.role === "TUTOR";
 
+  //Mostrar botón de Tutorías basado en permisos o roles específicos
+  const shouldShowTutorias = (canSeeTutorias || canSeeTutoriasNav) || isEstudiante || isTutor || isAdmin;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -53,8 +63,8 @@ export default function Navbar() {
       document.removeEventListener("keydown", onKey);
     };
   }, []);
-  // --- FIN NUEVO ---
 
+  
   const NavItem = ({
     href,
     label,
@@ -100,9 +110,9 @@ export default function Navbar() {
           />
         )}
         
-        {}
-        {isEstudiante && (
-          <NavItem href="/tutores" label="Tutores" icon={FaChalkboardTeacher} />
+        {/* Botón de Tutorías basado en permisos */}
+        {shouldShowTutorias && (
+          <NavItem href="/tutorias" label="Tutorías" icon={FaUserGraduate} />
         )}
         
         {canSeeUsuarios && (
@@ -111,7 +121,7 @@ export default function Navbar() {
         {isAdmin && <NavItem href="/roles" label="Roles" icon={FaShieldAlt} />}
       </div>
 
-      {}
+
       <div className="flex space-x-2 relative" ref={menuRef}>
         <button
           onClick={() => history.back()}
@@ -130,7 +140,7 @@ export default function Navbar() {
           <FaArrowRight className="text-2xl" />
         </button>
 
-        {}
+
         <button
           onClick={() => setMenuOpen((v) => !v)}
           aria-label="Menú"

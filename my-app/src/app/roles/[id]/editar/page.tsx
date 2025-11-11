@@ -7,11 +7,12 @@ import Navbar from "@/app/components/navbar";
 import Footer from "@/app/components/footer";
 
 type Perms = {
-  navbar?: Partial<Record<"home" | "competencias" | "usuarios" | "roles", boolean>>;
+  navbar?: Partial<Record<"home" | "competencias" | "usuarios" | "roles" | "tutorias", boolean>>;
   competitions?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
   users?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
   roles?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
   inscriptions?: Partial<Record<"read" | "create" | "delete", boolean>>;
+  tutorias?: Partial<Record<"read" | "manage", boolean>>;
 };
 
 type RoleDTO = {
@@ -36,11 +37,12 @@ export default function EditRolePage() {
   const [slug, setSlug] = useState("");
   const [isSystem, setIsSystem] = useState(false);
   const [perms, setPerms] = useState<Perms>({
-    navbar: { home: true, competencias: true, usuarios: false, roles: false },
+    navbar: { home: true, competencias: true, usuarios: false, roles: false, tutorias: false },
     competitions: { read: true, create: false, update: false, delete: false },
     users: { read: false, create: false, update: false, delete: false },
     roles: { read: false, create: false, update: false, delete: false },
     inscriptions: { read: true, create: true, delete: false },
+    tutorias: { read: false, manage: false },
   });
 
   const headerTitle = useMemo(() => (name ? `Editar rol: ${name}` : "Editar rol"), [name]);
@@ -51,7 +53,6 @@ export default function EditRolePage() {
   }
 
   function toggle(path: string) {
-    // path p.ej. "competitions.read"  /  "navbar.roles"  / "inscriptions.create"
     setPerms((prev) => {
       const next: any = { ...prev };
       const parts = path.split(".");
@@ -81,11 +82,19 @@ export default function EditRolePage() {
         setSlug(r.slug);
         setIsSystem(r.isSystem);
         setPerms({
-          navbar: { home: true, competencias: true, usuarios: false, roles: false, ...(r.permissions?.navbar || {}) },
+          navbar: { 
+            home: true, 
+            competencias: true, 
+            usuarios: false, 
+            roles: false, 
+            tutorias: false,
+            ...(r.permissions?.navbar || {}) 
+          },
           competitions: { read: true, ...(r.permissions?.competitions || {}) },
           users: { ...(r.permissions?.users || {}) },
           roles: { ...(r.permissions?.roles || {}) },
-          inscriptions: { read: true, ...(r.permissions?.inscriptions || {}) }, // 👈 asegura defaults
+          inscriptions: { read: true, ...(r.permissions?.inscriptions || {}) },
+          tutorias: { read: false, manage: false, ...(r.permissions?.tutorias || {}) },
         });
       } catch (e: any) {
         setErrorMsg(e.message || "No se pudo cargar el rol");
@@ -103,7 +112,7 @@ export default function EditRolePage() {
       const token = getToken();
       const body = {
         name,
-        slug, // lo mantenemos aunque se muestre deshabilitado si es de sistema
+        slug, 
         permissions: perms,
       };
       const res = await fetch(`${API}/api/roles/${id}`, {
@@ -183,7 +192,7 @@ export default function EditRolePage() {
             <section className="rounded-2xl bg-gray-100 p-4 space-y-4">
               <h2 className="font-semibold">Permisos de navegación</h2>
               <div className="flex flex-wrap gap-4">
-                {(["home", "competencias", "usuarios", "roles"] as const).map((k) => (
+                {(["home", "competencias", "usuarios", "roles", "tutorias"] as const).map((k) => (
                   <label key={k} className="inline-flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -255,6 +264,21 @@ export default function EditRolePage() {
                     {k}
                   </label>
                 ))}
+              </fieldset>
+
+              {/*Tutorías */}
+              <fieldset className="border rounded-xl p-4">
+                <legend className="px-2 text-sm font-semibold">Tutorías</legend>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={!!perms.tutorias?.read}
+                      onChange={() => toggle(`tutorias.read`)}
+                    />
+                    <span>read</span>
+                  </label>
+                </div>
               </fieldset>
             </section>
 

@@ -12,15 +12,16 @@ type Perms = {
   users?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
   roles?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
   inscriptions?: Partial<Record<"read" | "create" | "delete", boolean>>;
+  tutorias?: Partial<Record<"read" | "manage", boolean>>;
 };
 
 function generarSlug(nombre: string) {
   return nombre
     .trim()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // quita acentos
+    .replace(/[\u0300-\u036f]/g, "") 
     .toUpperCase()
-    .replace(/\s+/g, "_"); // espacios -> _
+    .replace(/\s+/g, "_"); 
 }
 
 export default function NuevoRolPage() {
@@ -32,16 +33,14 @@ export default function NuevoRolPage() {
     competitions: { read: true, create: false, update: false, delete: false },
     users: { read: false, create: false, update: false, delete: false },
     roles: { read: false, create: false, update: false, delete: false },
-    inscriptions: { read: true, create: true, delete: false }, // 👈 por defecto
+    inscriptions: { read: true, create: true, delete: false },
+    tutorias: { read: false, manage: false },
   });
-
-
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function toggle(path: string) {
-    // path: "competitions.read" | "users.create" | "roles.update"
     const [g, k] = path.split(".");
     setPerms((prev) => {
       const base = prev ?? {};
@@ -105,7 +104,7 @@ export default function NuevoRolPage() {
               onChange={(e) => {
                 const n = e.target.value;
                 setName(n);
-                setSlug(generarSlug(n)); // 👈 slug automático
+                setSlug(generarSlug(n));
               }}
               required
             />
@@ -181,6 +180,20 @@ export default function NuevoRolPage() {
             ))}
           </fieldset>
 
+          {/* Tutorías */}
+          <fieldset className="border rounded-xl p-4">
+            <legend className="px-2 text-sm font-semibold">Tutorías</legend>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={!!perms?.tutorias?.read}
+                  onChange={() => toggle(`tutorias.read`)}
+                />
+                <span>read</span>
+              </label>
+            </div>
+          </fieldset>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 
