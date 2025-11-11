@@ -29,8 +29,8 @@ const ALL_ETAPAS: { api: EtapaKey; ui: EtapaUi }[] = [
 
 type EtapaItem = {
   etapa: EtapaKey;
-  fechaInicio: string; // yyyy-mm-dd
-  fechaFin?: string | null; // CORRECCION puede ser null
+  fechaInicio: string;
+  fechaFin?: string | null;
 };
 
 type CompetitionApi = {

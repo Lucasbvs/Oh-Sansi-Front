@@ -12,15 +12,16 @@ type Perms = {
   users?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
   roles?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
   inscriptions?: Partial<Record<"read" | "create" | "delete", boolean>>;
+  evaluaciones?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
 };
 
 function generarSlug(nombre: string) {
   return nombre
     .trim()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // quita acentos
+    .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase()
-    .replace(/\s+/g, "_"); // espacios -> _
+    .replace(/\s+/g, "_");
 }
 
 export default function NuevoRolPage() {
@@ -32,7 +33,8 @@ export default function NuevoRolPage() {
     competitions: { read: true, create: false, update: false, delete: false },
     users: { read: false, create: false, update: false, delete: false },
     roles: { read: false, create: false, update: false, delete: false },
-    inscriptions: { read: true, create: true, delete: false }, // 👈 por defecto
+    inscriptions: { read: true, create: true, delete: false },
+    evaluaciones: { read: false, create: false, update: false, delete: false },
   });
 
 
@@ -105,26 +107,16 @@ export default function NuevoRolPage() {
               onChange={(e) => {
                 const n = e.target.value;
                 setName(n);
-                setSlug(generarSlug(n)); // 👈 slug automático
+                setSlug(generarSlug(n));
               }}
               required
-            />
-          </label>
-
-          {/* Slug (solo lectura, se autogenera) */}
-          <label className="block">
-            <span className="text-sm font-medium">Slug (automático)</span>
-            <input
-              className="mt-1 w-full rounded-lg border px-3 py-2 bg-gray-50 text-gray-600"
-              value={slug}
-              readOnly
             />
           </label>
 
           {/* Competencias */}
           <fieldset className="border rounded-xl p-4">
             <legend className="px-2 text-sm font-semibold">Competencias</legend>
-            {["read", "create", "update", "delete"].map((k) => (
+            {["ver", "crear", "editar", "eliminar"].map((k) => (
               <label key={k} className="mr-4">
                 <input
                   type="checkbox"
@@ -139,7 +131,7 @@ export default function NuevoRolPage() {
           {/* Usuarios */}
           <fieldset className="border rounded-xl p-4">
             <legend className="px-2 text-sm font-semibold">Usuarios</legend>
-            {["read", "create", "update", "delete"].map((k) => (
+            {["ver", "crear", "editar", "eliminar"].map((k) => (
               <label key={k} className="mr-4">
                 <input
                   type="checkbox"
@@ -151,25 +143,10 @@ export default function NuevoRolPage() {
             ))}
           </fieldset>
 
-          {/* Roles (gestión de roles) */}
-          <fieldset className="border rounded-xl p-4">
-            <legend className="px-2 text-sm font-semibold">Roles</legend>
-            {["read", "create", "update", "delete"].map((k) => (
-              <label key={k} className="mr-4">
-                <input
-                  type="checkbox"
-                  checked={!!(perms?.roles as any)?.[k]}
-                  onChange={() => toggle(`roles.${k}`)}
-                />{" "}
-                {k}
-              </label>
-            ))}
-          </fieldset>
-
           {/* Inscripciones */}
           <fieldset className="border rounded-xl p-4">
             <legend className="px-2 text-sm font-semibold">Inscripciones</legend>
-            {["read", "create", "delete"].map((k) => (
+            {["ver", "crear", "eliminar"].map((k) => (
               <label key={k} className="mr-4">
                 <input
                   type="checkbox"
@@ -181,6 +158,19 @@ export default function NuevoRolPage() {
             ))}
           </fieldset>
 
+          <fieldset className="border rounded-xl p-4">
+            <legend className="px-2 text-sm font-semibold">Evaluaciones</legend>
+            {["ver", "crear", "editar", "eliminar"].map((k) => (
+              <label key={k} className="mr-4">
+                <input
+                  type="checkbox"
+                  checked={!!(perms?.evaluaciones as any)?.[k]}
+                  onChange={() => toggle(`evaluaciones.${k}`)}
+                />{" "}
+                {k}
+              </label>
+            ))}
+          </fieldset>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 

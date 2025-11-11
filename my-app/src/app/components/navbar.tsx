@@ -11,6 +11,7 @@ import {
   FaShieldAlt,
   FaBars,
   FaChalkboardTeacher,
+  FaClipboardList
 } from "react-icons/fa";
 import useAuthUser from "@/hooks/useAuthUser";
 
@@ -23,9 +24,15 @@ export default function Navbar() {
   const canSeeCompetencias = !!perms?.competitions?.read;
   const canSeeUsuarios = !!perms?.users?.read;
   const canSeeMisComp = !!perms?.inscriptions?.read;
+  const canSeeEvaluaciones = !!perms?.evaluaciones?.read;
   const isAdmin = (user?.role ?? "") === "ADMIN";
   
-  
+  // 🔍 DEBUG: Agrega estos logs
+  console.log("🔍 Usuario completo:", user);
+  console.log("🔍 Permisos del usuario:", perms);
+  console.log("🔍 Permisos de evaluaciones:", perms?.evaluaciones);
+  console.log("🔍 Puede ver evaluaciones?:", canSeeEvaluaciones);
+
   const isEstudiante = user?.role === "ESTUDIANTE";
 
 
@@ -37,7 +44,6 @@ export default function Navbar() {
     router.push("/login");
   };
 
-  // Cerrar dropdown con click afuera o tecla Esc
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       if (!menuRef.current) return;
@@ -53,7 +59,6 @@ export default function Navbar() {
       document.removeEventListener("keydown", onKey);
     };
   }, []);
-  // --- FIN NUEVO ---
 
   const NavItem = ({
     href,
@@ -90,8 +95,11 @@ export default function Navbar() {
 
       <div className="flex items-center gap-2">
         {canSeeCompetencias && (
-          <NavItem href="/home" label="Competencias" icon={FaTrophy} />
+          <NavItem href="/home"
+          label="Competencias"
+          icon={FaTrophy} />
         )}
+
         {canSeeMisComp && (
           <NavItem
             href="/mis-competencias"
@@ -99,16 +107,28 @@ export default function Navbar() {
             icon={FaTrophy}
           />
         )}
-        
-        {}
+
         {isEstudiante && (
-          <NavItem href="/tutores" label="Tutores" icon={FaChalkboardTeacher} />
+          <NavItem href="/tutores"
+          label="Tutores"
+          icon={FaChalkboardTeacher} />
         )}
         
         {canSeeUsuarios && (
-          <NavItem href="/usuarios" label="Usuarios" icon={FaUsers} />
+          <NavItem href="/usuarios"
+          label="Usuarios"
+          icon={FaUsers} />
         )}
-        {isAdmin && <NavItem href="/roles" label="Roles" icon={FaShieldAlt} />}
+
+        {canSeeEvaluaciones && (
+          <NavItem href="/mis-evaluaciones"
+          label="Mis evaluaciones"
+          icon={FaClipboardList} />
+        )}
+
+        {isAdmin && <NavItem href="/roles"
+        label="Roles"
+        icon={FaShieldAlt} />}
       </div>
 
       {}

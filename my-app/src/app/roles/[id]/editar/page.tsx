@@ -12,6 +12,7 @@ type Perms = {
   users?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
   roles?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
   inscriptions?: Partial<Record<"read" | "create" | "delete", boolean>>;
+  evaluaciones?: Partial<Record<"read" | "create" | "update" | "delete", boolean>>;
 };
 
 type RoleDTO = {
@@ -41,6 +42,7 @@ export default function EditRolePage() {
     users: { read: false, create: false, update: false, delete: false },
     roles: { read: false, create: false, update: false, delete: false },
     inscriptions: { read: true, create: true, delete: false },
+    evaluaciones: { read: false, create: false, update: false, delete: false },
   });
 
   const headerTitle = useMemo(() => (name ? `Editar rol: ${name}` : "Editar rol"), [name]);
@@ -156,43 +158,6 @@ export default function EditRolePage() {
                     placeholder="Nombre legible del rol"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Slug</label>
-                  <input
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value.toUpperCase())}
-                    className="w-full rounded-xl border px-3 py-2"
-                    placeholder="EJEMPLO_ROL"
-                    disabled={isSystem}
-                    title={isSystem ? "Los roles de sistema no pueden cambiar de slug" : ""}
-                  />
-                </div>
-              </div>
-              <div className="mt-3">
-                <label className="inline-flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={isSystem}
-                    onChange={(e) => setIsSystem(e.target.checked)}
-                  />
-                  <span className="text-sm">Rol de sistema</span>
-                </label>
-              </div>
-            </section>
-
-            <section className="rounded-2xl bg-gray-100 p-4 space-y-4">
-              <h2 className="font-semibold">Permisos de navegación</h2>
-              <div className="flex flex-wrap gap-4">
-                {(["home", "competencias", "usuarios", "roles"] as const).map((k) => (
-                  <label key={k} className="inline-flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={!!perms.navbar?.[k]}
-                      onChange={() => toggle(`navbar.${k}`)}
-                    />
-                    <span className="capitalize">{k}</span>
-                  </label>
-                ))}
               </div>
             </section>
 
@@ -201,7 +166,7 @@ export default function EditRolePage() {
               <fieldset className="border rounded-xl p-4">
                 <legend className="px-2 text-sm font-semibold">Competencias</legend>
                 {(["read", "create", "update", "delete"] as const).map((k) => (
-                  <label key={k} className="mr-4 block">
+                  <label key={k} className="mr-4">
                     <input
                       type="checkbox"
                       checked={!!perms.competitions?.[k]}
@@ -216,7 +181,7 @@ export default function EditRolePage() {
               <fieldset className="border rounded-xl p-4">
                 <legend className="px-2 text-sm font-semibold">Usuarios</legend>
                 {(["read", "create", "update", "delete"] as const).map((k) => (
-                  <label key={k} className="mr-4 block">
+                  <label key={k} className="mr-4">
                     <input
                       type="checkbox"
                       checked={!!perms.users?.[k]}
@@ -227,26 +192,11 @@ export default function EditRolePage() {
                 ))}
               </fieldset>
 
-              {/* Roles */}
-              <fieldset className="border rounded-xl p-4">
-                <legend className="px-2 text-sm font-semibold">Roles</legend>
-                {(["read", "create", "update", "delete"] as const).map((k) => (
-                  <label key={k} className="mr-4 block">
-                    <input
-                      type="checkbox"
-                      checked={!!perms.roles?.[k]}
-                      onChange={() => toggle(`roles.${k}`)}
-                    />{" "}
-                    {k}
-                  </label>
-                ))}
-              </fieldset>
-
               {/* Inscripciones */}
               <fieldset className="border rounded-xl p-4">
                 <legend className="px-2 text-sm font-semibold">Inscripciones</legend>
                 {(["read", "create", "delete"] as const).map((k) => (
-                  <label key={k} className="mr-4 block">
+                  <label key={k} className="mr-4">
                     <input
                       type="checkbox"
                       checked={!!perms.inscriptions?.[k]}
@@ -256,8 +206,22 @@ export default function EditRolePage() {
                   </label>
                 ))}
               </fieldset>
-            </section>
 
+              <fieldset className="border rounded-xl p-4">
+                <legend className="px-2 text-sm font-semibold">Evaluaciones</legend>
+                {["read", "create", "update", "delete"].map((k) => (
+                  <label key={k} className="mr-4">
+                    <input
+                      type="checkbox"
+                      checked={!!(perms?.evaluaciones as any)?.[k]}
+                      onChange={() => toggle(`evaluaciones.${k}`)}
+                    />{" "}
+                    {k}
+                  </label>
+                ))}
+              </fieldset>
+            </section>
+            
             <div className="flex items-center gap-3">
               <button
                 type="submit"

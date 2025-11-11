@@ -3,7 +3,8 @@ export type Permissions = {
   navbar?: Record<string, boolean>;
   competitions?: Partial<Record<"read"|"create"|"update"|"delete", boolean>>;
   users?: Partial<Record<"read"|"create"|"update"|"delete", boolean>>;
-  inscriptions?: Partial<Record<"read"|"create"|"delete", boolean>>; // NUEVO: agregar inscriptions
+  inscriptions?: Partial<Record<"read"|"create"|"delete", boolean>>;
+  evaluaciones?: Partial<Record<"read"|"create"|"update"|"delete", boolean>>;
 };
 
 export function isAdmin(roleSlug?: string) {
@@ -65,4 +66,18 @@ export function getPermissions() {
 
 export function shouldShowTutoresButton(roleSlug?: string, tieneTutor?: boolean) {
   return isEstudiante(roleSlug) && !tieneTutor;
+}
+
+export function canReadEvaluaciones(roleSlug?: string, perms?: Permissions | null) {
+  if (isAdmin(roleSlug)) return true;
+  return Boolean(perms?.evaluaciones?.read);
+}
+
+export function canCreateEvaluaciones(roleSlug?: string, perms?: Permissions | null) {
+  if (isAdmin(roleSlug)) return true;
+  return Boolean(perms?.evaluaciones?.create);
+}
+
+export function isEvaluador(roleSlug?: string) {
+  return roleSlug === "EVALUADOR";
 }

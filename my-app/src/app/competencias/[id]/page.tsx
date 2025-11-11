@@ -6,6 +6,7 @@ import Navbar from "@/app/components/navbar";
 import Footer from "@/app/components/footer";
 import { getPermissions } from "@/utils/permissions";
 import { useAuthUser } from "@/hooks/useAuthUser";
+import { FaClipboardCheck, FaUsers } from "react-icons/fa";
 
 type Competition = {
   id: string;
@@ -39,6 +40,8 @@ export default function CompetitionDetailPage() {
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [yaAsignadoEvaluador, setYaAsignadoEvaluador] = useState(false);
+  const [asignando, setAsignando] = useState(false);
 
   const perms = user?.roleInfo?.permissions ?? getPermissions();
   const authToken = typeof window !== "undefined" ? localStorage.getItem("ohsansi_token") : null;
@@ -56,6 +59,7 @@ export default function CompetitionDetailPage() {
       if (!cRes.ok || !cJson.ok) throw new Error(cJson?.message || `HTTP ${cRes.status}`);
       setComp(cJson.competition);
 
+      setYaAsignadoEvaluador(cJson.competition.yaAsignadoEvaluador || false);
       // 2) Mis inscripciones (si hay sesión)
       if (authToken) {
         const iRes = await fetch(`${API}/api/inscriptions/mis`, {
@@ -209,6 +213,47 @@ export default function CompetitionDetailPage() {
     return isNaN(d.getTime()) ? null : d.toLocaleDateString();
   }, [mine]);
 
+  async function asignarseEvaluador() {
+    if (!comp || !authToken) return;
+    setAsignando(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`${API}/api/evaluaciones/asignar/${comp.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json?.ok === false) throw new Error(json?.message || `HTTP ${res.status}`);
+      setMsg("¡Te asignaste como evaluador!");
+      await load();
+    } catch (e: any) {
+      setMsg(e.message || "No se pudo asignar como evaluador");
+    } finally {
+      setAsignando(false);
+    }
+  }
+
+  async function desasignarseEvaluador() {
+    if (!comp || !authToken) return;
+    setAsignando(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`${API}/api/evaluaciones/desasignar/${comp.id}`, {
+        method: "DELETE",
+        headers: { Accept: "application/json", Authorization: `Bearer ${authToken}` },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json?.ok === false) throw new Error(json?.message || `HTTP ${res.status}`);
+      setMsg("Dejaste de evaluar esta competencia.");
+      await load();
+    } catch (e: any) {
+      setMsg(e.message || "No se pudo desasignar");
+    } finally {
+      setAsignando(false);
+    }
+  }
+
+
   return (
     <div className="min-h-screen bg-white text-black">
       <Navbar />
@@ -344,6 +389,38 @@ export default function CompetitionDetailPage() {
                   <span className="px-3 py-2 rounded-xl bg-green-100 text-green-700 text-sm">
                     Ya estás inscrito{fechaInscFmt ? ` ( ${fechaInscFmt} )` : ""}
                   </span>
+                )}
+
+                {perms?.evaluaciones?.create && (
+                  <>
+                    {!yaAsignadoEvaluador ? (
+                      <button
+                        onClick={asignarseEvaluador}
+                        disabled={asignando}
+                        className="px-4 py-2 rounded-xl bg-purple-600 text-white disabled:opacity-60 hover:bg-purple-700 flex items-center gap-2"
+                      >
+                        <FaClipboardCheck />
+                        {asignando ? "Asignando..." : "Evaluar"}
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={desasignarseEvaluador}
+                          disabled={asignando}
+                          className="px-4 py-2 rounded-xl border border-purple-600 text-purple-600 disabled:opacity-60 hover:bg-purple-50"
+                        >
+                          {asignando ? "Procesando..." : "Dejar de evaluar"}
+                        </button>
+                        <button
+                          onClick={() => router.push(`/competencias/${comp.id}/estudiantes`)}
+                          className="px-4 py-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-2"
+                        >
+                          <FaUsers />
+                          Ver Estudiantes
+                        </button>
+                      </>
+                    )}
+                  </>
                 )}
               </div>
             </div>
