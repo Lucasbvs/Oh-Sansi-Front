@@ -19,7 +19,7 @@ import useAuthUser from "@/hooks/useAuthUser";
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user } = useAuthUser();
+  const { user, loading: loadingUser } = useAuthUser();
 
   const perms = (user as any)?.roleInfo?.permissions ?? {};
   
@@ -29,15 +29,19 @@ export default function Navbar() {
   const canSeeMisComp = !!perms?.inscriptions?.read;
   const isAdmin = (user?.role ?? "") === "ADMIN";
   
-  
+  // Roles específicos
   const isEstudiante = user?.role === "ESTUDIANTE";
   const isTutor = user?.role === "TUTOR";
-  const canSeeEvaluaciones = !!perms?.evaluaciones?.read;
+  
+  // ✅ CORREGIDO: Verificar permisos de evaluaciones
+  const canSeeEvaluaciones = !!perms?.evaluaciones?.read || 
+                            !!perms?.evaluaciones?.create || 
+                            user?.role === "EVALUADOR" ||
+                            isAdmin;
 
+  // Tutorías
   const canSeeTutorias = !!perms?.tutorias?.read;
   const canSeeTutoriasNav = !!perms?.navbar?.tutorias;
-
-  //Mostrar botón de Tutorías basado en permisos o roles específicos
   const shouldShowTutorias = (canSeeTutorias || canSeeTutoriasNav) || isEstudiante || isTutor || isAdmin;
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -63,7 +67,6 @@ export default function Navbar() {
       document.removeEventListener("keydown", onKey);
     };
   }, []);
-  // --- FIN NUEVO ---
 
   const NavItem = ({
     href,
@@ -100,9 +103,7 @@ export default function Navbar() {
 
       <div className="flex items-center gap-2">
         {canSeeCompetencias && (
-          <NavItem href="/home"
-          label="Competencias"
-          icon={FaTrophy} />
+          <NavItem href="/home" label="Competencias" icon={FaTrophy} />
         )}
 
         {canSeeMisComp && (
@@ -113,28 +114,27 @@ export default function Navbar() {
           />
         )}
         
-        {}
         {isEstudiante && (
           <NavItem href="/tutores" label="Tutores" icon={FaChalkboardTeacher} />
         )}
         
         {canSeeUsuarios && (
-          <NavItem href="/usuarios"
-          label="Usuarios"
-          icon={FaUsers} />
+          <NavItem href="/usuarios" label="Usuarios" icon={FaUsers} />
         )}
 
+        {/* ✅ Evaluaciones - Mostrar solo si tiene permisos */}
         {canSeeEvaluaciones && (
-          <NavItem href="/mis-evaluaciones"
-          label="Mis evaluaciones"
-          icon={FaClipboardList} />
+          <NavItem 
+            href="/mis-evaluaciones" 
+            label="Mis evaluaciones" 
+            icon={FaClipboardList} 
+          />
         )}
 
-        {isAdmin && <NavItem href="/roles"
-        label="Roles"
-        icon={FaShieldAlt} />}
+        {isAdmin && (
+          <NavItem href="/roles" label="Roles" icon={FaShieldAlt} />
+        )}
       </div>
-
 
       <div className="flex space-x-2 relative" ref={menuRef}>
         <button
@@ -154,7 +154,6 @@ export default function Navbar() {
           <FaArrowRight className="text-2xl" />
         </button>
 
-
         <button
           onClick={() => setMenuOpen((v) => !v)}
           aria-label="Menú"
@@ -164,13 +163,11 @@ export default function Navbar() {
           <FaBars className="text-2xl" />
         </button>
 
-        {/* Dropdown hacia abajo */}
         {menuOpen && (
           <div
             role="menu"
             className="absolute right-0 top-[calc(100%+8px)] w-44 rounded-lg bg-white text-black shadow-lg z-50 overflow-hidden"
           >
-            {/* Perfil */}
             <button
               role="menuitem"
               onClick={() => {
@@ -182,7 +179,6 @@ export default function Navbar() {
               Perfil
             </button>
 
-            {/* Cerrar sesión */}
             <button
               role="menuitem"
               onClick={handleLogout}
