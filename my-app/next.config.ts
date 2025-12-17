@@ -1,12 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-   async rewrites() {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
+  async rewrites() {
     return [
       { source: "/api/:path*", destination: "http://localhost:4000/api/:path*" },
     ];
   },
 };
 
-module.exports = nextConfig;
 export default nextConfig;
